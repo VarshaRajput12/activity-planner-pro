@@ -18,14 +18,20 @@ export const useActivities = () => {
           *,
           creator:profiles!activities_created_by_fkey(id, full_name, avatar_url, email),
           participation:activity_participation(
-            *,
-            user:profiles(id, full_name, avatar_url, email)
+            id,
+            activity_id,
+            user_id,
+            status,
+            rejection_reason,
+            responded_at,
+            created_at,
+            user:profiles(id, full_name, avatar_url)
           )
         `)
         .order('scheduled_at', { ascending: true });
 
       if (error) throw error;
-      setActivities(data || []);
+      setActivities((data || []) as unknown as Activity[]);
     } catch (error) {
       console.error('Error fetching activities:', error);
       toast({
@@ -125,7 +131,7 @@ export const useActivities = () => {
         .select('id')
         .eq('activity_id', activityId)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         // Update existing response

@@ -1,16 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { LeaderboardEntry, Activity } from '@/types/database';
+import { Activity, ProfileMinimal } from '@/types/database';
 import { useToast } from '@/hooks/use-toast';
+
+interface LeaderboardParticipant {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  rank: number | null;
+}
 
 interface LeaderboardData {
   activity: Activity;
-  participants: {
-    user_id: string;
-    full_name: string | null;
-    avatar_url: string | null;
-    rank: number | null;
-  }[];
+  participants: LeaderboardParticipant[];
+}
+
+interface ParticipationRecord {
+  user_id: string;
+  status: string;
+  user?: ProfileMinimal;
+}
+
+interface LeaderboardRecord {
+  user_id: string;
+  rank: number | null;
 }
 
 export const useLeaderboard = () => {
@@ -40,30 +53,48 @@ export const useLeaderboard = () => {
       if (activitiesError) throw activitiesError;
 
       const leaderboard: LeaderboardData[] = (activities || []).map((activity) => {
-        const acceptedParticipants = activity.participation
-          ?.filter((p: any) => p.status === 'accepted')
-          .map((p: any) => {
-            const leaderboardEntry = activity.leaderboard?.find(
-              (l: any) => l.user_id === p.user_id
+        const participationList = (activity.participation || []) as ParticipationRecord[];
+        const leaderboardList = (activity.leaderboard || []) as LeaderboardRecord[];
+        
+        const acceptedParticipants = participationList
+          .filter((p) => p.status === 'accepted')
+          .map((p) => {
+            const leaderboardEntry = leaderboardList.find(
+              (l) => l.user_id === p.user_id
             );
             return {
               user_id: p.user_id,
-              full_name: p.user?.full_name,
-              avatar_url: p.user?.avatar_url,
+              full_name: p.user?.full_name || null,
+              avatar_url: p.user?.avatar_url || null,
               rank: leaderboardEntry?.rank || null,
             };
           })
           // Sort by rank (ranked users first, then unranked)
-          .sort((a: any, b: any) => {
+          .sort((a, b) => {
             if (a.rank && b.rank) return a.rank - b.rank;
             if (a.rank) return -1;
             if (b.rank) return 1;
             return 0;
           });
 
+        // Create a clean activity object
+        const cleanActivity: Activity = {
+          id: activity.id,
+          title: activity.title,
+          description: activity.description,
+          location: activity.location,
+          scheduled_at: activity.scheduled_at,
+          status: activity.status,
+          created_by: activity.created_by,
+          poll_id: activity.poll_id,
+          poll_option_id: activity.poll_option_id,
+          created_at: activity.created_at,
+          updated_at: activity.updated_at,
+        };
+
         return {
-          activity: activity as Activity,
-          participants: acceptedParticipants || [],
+          activity: cleanActivity,
+          participants: acceptedParticipants,
         };
       });
 
@@ -88,7 +119,7 @@ export const useLeaderboard = () => {
         .select('id')
         .eq('activity_id', activityId)
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         if (rank === null) {
