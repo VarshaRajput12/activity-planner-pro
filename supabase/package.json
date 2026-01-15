@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "functions:deploy": "supabase functions deploy",
+    "functions:deploy:signup": "supabase functions deploy handle-user-signup",
+    "functions:deploy:activities": "supabase functions deploy activity-operations",
+    "functions:serve": "supabase functions serve",
+    "functions:logs:signup": "supabase functions logs handle-user-signup",
+    "functions:logs:activities": "supabase functions logs activity-operations",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status"
+  }
+}

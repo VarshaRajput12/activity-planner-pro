@@ -34,16 +34,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isAdmin = roles.some(role => role.role === 'admin');
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, retryCount = 0) => {
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (profileError) {
         console.error('Error fetching profile:', profileError);
+        return;
+      }
+
+      // If profile doesn't exist and we haven't retried too many times, wait and retry
+      if (!profileData && retryCount < 3) {
+        console.log(`Profile not found, retrying in ${(retryCount + 1) * 1000}ms...`);
+        setTimeout(() => {
+          fetchProfile(userId, retryCount + 1);
+        }, (retryCount + 1) * 1000);
+        return;
+      }
+
+      if (!profileData) {
+        console.warn('Profile not found after retries');
         return;
       }
 

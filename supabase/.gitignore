@@ -1,0 +1,9 @@
+# Supabase
+.env
+.env.local
+.branches
+.temp
+
+# Edge Functions
+.vscode/
+*.log

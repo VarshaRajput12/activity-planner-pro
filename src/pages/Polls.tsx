@@ -40,7 +40,9 @@ const Polls: React.FC = () => {
   const [newPoll, setNewPoll] = useState({
     title: '',
     description: '',
-    expiresIn: 7,
+    expiresInHours: 0,
+    expiresInMinutes: 0,
+    expiresInSeconds: 0,
     options: [{ title: '', description: '' }, { title: '', description: '' }],
   });
 
@@ -51,10 +53,19 @@ const Polls: React.FC = () => {
     if (!newPoll.title || newPoll.options.filter((o) => o.title).length < 2) return;
 
     setIsCreating(true);
+    
+    // Calculate total seconds and add to current date
+    const totalSeconds = 
+      (newPoll.expiresInHours * 3600) + 
+      (newPoll.expiresInMinutes * 60) + 
+      newPoll.expiresInSeconds;
+    
+    const expiresAt = new Date(Date.now() + totalSeconds * 1000);
+    
     const result = await createPoll(
       newPoll.title,
       newPoll.description,
-      addDays(new Date(), newPoll.expiresIn),
+      expiresAt,
       newPoll.options.filter((o) => o.title)
     );
 
@@ -63,7 +74,9 @@ const Polls: React.FC = () => {
       setNewPoll({
         title: '',
         description: '',
-        expiresIn: 7,
+        expiresInHours: 0,
+        expiresInMinutes: 0,
+        expiresInSeconds: 0,
         options: [{ title: '', description: '' }, { title: '', description: '' }],
       });
     }
@@ -255,7 +268,7 @@ const Polls: React.FC = () => {
                       <Label htmlFor="description">Description (optional)</Label>
                       <Textarea
                         id="description"
-                        placeholder="Add more context..."
+                        placeholder="Add more details about the poll..."
                         value={newPoll.description}
                         onChange={(e) =>
                           setNewPoll((prev) => ({ ...prev, description: e.target.value }))
@@ -264,20 +277,57 @@ const Polls: React.FC = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="expires">Expires in (days)</Label>
-                      <Input
-                        id="expires"
-                        type="number"
-                        min={1}
-                        max={30}
-                        value={newPoll.expiresIn}
-                        onChange={(e) =>
-                          setNewPoll((prev) => ({
-                            ...prev,
-                            expiresIn: parseInt(e.target.value) || 7,
-                          }))
-                        }
-                      />
+                      <Label>Expires in</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <Label htmlFor="hours" className="text-xs text-muted-foreground">Hours</Label>
+                          <Input
+                            id="hours"
+                            type="number"
+                            min={0}
+                            max={720}
+                            value={newPoll.expiresInHours}
+                            onChange={(e) =>
+                              setNewPoll((prev) => ({
+                                ...prev,
+                                expiresInHours: parseInt(e.target.value) || 0,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="minutes" className="text-xs text-muted-foreground">Minutes</Label>
+                          <Input
+                            id="minutes"
+                            type="number"
+                            min={0}
+                            max={59}
+                            value={newPoll.expiresInMinutes}
+                            onChange={(e) =>
+                              setNewPoll((prev) => ({
+                                ...prev,
+                                expiresInMinutes: parseInt(e.target.value) || 0,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="seconds" className="text-xs text-muted-foreground">Seconds</Label>
+                          <Input
+                            id="seconds"
+                            type="number"
+                            min={0}
+                            max={59}
+                            value={newPoll.expiresInSeconds}
+                            onChange={(e) =>
+                              setNewPoll((prev) => ({
+                                ...prev,
+                                expiresInSeconds: parseInt(e.target.value) || 0,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-3">
