@@ -1,0 +1,230 @@
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { ActivityPoll, PollOption, Vote } from '@/types/database';
+import { useToast } from '@/hooks/use-toast';
+
+export const usePolls = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [polls, setPolls] = useState<ActivityPoll[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchPolls = useCallback(async () => {
+    try {
+      const { data: pollsData, error: pollsError } = await supabase
+        .from('activity_polls')
+        .select(`
+          *,
+          creator:profiles!activity_polls_created_by_fkey(id, full_name, avatar_url, email),
+          options:poll_options(
+            *,
+            votes(id, user_id)
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (pollsError) throw pollsError;
+
+      const enrichedPolls = (pollsData || []).map((poll) => ({
+        ...poll,
+        options: poll.options?.map((option: PollOption & { votes: Vote[] }) => ({
+          ...option,
+          vote_count: option.votes?.length || 0,
+        })),
+        vote_count: poll.options?.reduce(
+          (sum: number, opt: { votes?: Vote[] }) => sum + (opt.votes?.length || 0),
+          0
+        ) || 0,
+      }));
+
+      setPolls(enrichedPolls);
+    } catch (error) {
+      console.error('Error fetching polls:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load polls',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  const createPoll = async (
+    title: string,
+    description: string,
+    expiresAt: Date,
+    options: { title: string; description?: string }[]
+  ) => {
+    if (!user) return null;
+
+    try {
+      const { data: poll, error: pollError } = await supabase
+        .from('activity_polls')
+        .insert({
+          title,
+          description,
+          expires_at: expiresAt.toISOString(),
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (pollError) throw pollError;
+
+      const optionsToInsert = options.map((opt) => ({
+        poll_id: poll.id,
+        title: opt.title,
+        description: opt.description || null,
+      }));
+
+      const { error: optionsError } = await supabase
+        .from('poll_options')
+        .insert(optionsToInsert);
+
+      if (optionsError) throw optionsError;
+
+      toast({
+        title: 'Success',
+        description: 'Poll created successfully',
+      });
+
+      await fetchPolls();
+      return poll;
+    } catch (error) {
+      console.error('Error creating poll:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create poll',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
+  const vote = async (pollId: string, optionId: string) => {
+    if (!user) return false;
+
+    try {
+      // Check if user already voted
+      const { data: existingVote } = await supabase
+        .from('votes')
+        .select('id')
+        .eq('poll_id', pollId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingVote) {
+        toast({
+          title: 'Already voted',
+          description: 'You have already voted on this poll',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      const { error } = await supabase.from('votes').insert({
+        poll_id: pollId,
+        option_id: optionId,
+        user_id: user.id,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Vote recorded',
+        description: 'Your vote has been submitted',
+      });
+
+      await fetchPolls();
+      return true;
+    } catch (error) {
+      console.error('Error voting:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to record vote',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
+  const closePoll = async (pollId: string) => {
+    try {
+      const { error } = await supabase
+        .from('activity_polls')
+        .update({ status: 'closed' })
+        .eq('id', pollId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Poll closed',
+        description: 'The poll has been closed',
+      });
+
+      await fetchPolls();
+    } catch (error) {
+      console.error('Error closing poll:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to close poll',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const getUserVote = useCallback(
+    (pollId: string): string | null => {
+      if (!user) return null;
+      const poll = polls.find((p) => p.id === pollId);
+      if (!poll?.options) return null;
+
+      for (const option of poll.options) {
+        const vote = option.votes?.find((v: Vote) => v.user_id === user.id);
+        if (vote) return option.id;
+      }
+      return null;
+    },
+    [polls, user]
+  );
+
+  useEffect(() => {
+    fetchPolls();
+
+    // Subscribe to real-time updates
+    const pollsChannel = supabase
+      .channel('polls-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'activity_polls' },
+        () => fetchPolls()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'votes' },
+        () => fetchPolls()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'poll_options' },
+        () => fetchPolls()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(pollsChannel);
+    };
+  }, [fetchPolls]);
+
+  return {
+    polls,
+    isLoading,
+    createPoll,
+    vote,
+    closePoll,
+    getUserVote,
+    refetch: fetchPolls,
+  };
+};
