@@ -2,9 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Meetup Activity Tracker Design System
-   Clean, professional SaaS aesthetic with slate blues and teal accents
-*/
+/* Meetup Activity Tracker Design System */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
@@ -73,8 +71,6 @@
     --shadow-sm: 0 1px 2px 0 hsl(222 47% 11% / 0.05);
     --shadow-md: 0 4px 6px -1px hsl(222 47% 11% / 0.08), 0 2px 4px -2px hsl(222 47% 11% / 0.06);
     --shadow-lg: 0 10px 15px -3px hsl(222 47% 11% / 0.08), 0 4px 6px -4px hsl(222 47% 11% / 0.05);
-    --shadow-xl: 0 20px 25px -5px hsl(222 47% 11% / 0.08), 0 8px 10px -6px hsl(222 47% 11% / 0.04);
-    --shadow-glow: 0 0 40px -10px hsl(173 80% 40% / 0.3);
   }
 
   .dark {
@@ -120,11 +116,6 @@
     --sidebar-accent-foreground: 210 20% 90%;
     --sidebar-border: 222 47% 14%;
     --sidebar-ring: 173 80% 45%;
-
-    --gradient-primary: linear-gradient(135deg, hsl(173 80% 45%) 0%, hsl(173 80% 35%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(173 80% 45%) 0%, hsl(173 60% 55%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(222 47% 11%) 0%, hsl(222 47% 9%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(222 47% 6%) 0%, hsl(222 47% 11%) 50%, hsl(173 58% 20%) 100%);
   }
 }
 
@@ -134,7 +125,7 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
   }
 
@@ -147,30 +138,30 @@
   /* Card variations */
   .card-elevated {
     @apply bg-card rounded-xl border border-border shadow-md transition-all duration-200;
-    box-shadow: var(--shadow-md);
   }
 
   .card-elevated:hover {
-    box-shadow: var(--shadow-lg);
+    @apply shadow-lg;
     transform: translateY(-1px);
   }
 
-  .card-glass {
-    @apply bg-white/80 backdrop-blur-xl rounded-xl border border-white/20;
-    box-shadow: var(--shadow-lg);
-  }
-
-  /* Status badges */
+  /* Status badges - using raw colors since they're custom */
   .status-accepted {
-    @apply bg-success/10 text-success border-success/20;
+    background-color: hsl(152 69% 40% / 0.1);
+    color: hsl(152 69% 40%);
+    border-color: hsl(152 69% 40% / 0.2);
   }
 
   .status-rejected {
-    @apply bg-destructive/10 text-destructive border-destructive/20;
+    background-color: hsl(0 72% 51% / 0.1);
+    color: hsl(0 72% 51%);
+    border-color: hsl(0 72% 51% / 0.2);
   }
 
   .status-pending {
-    @apply bg-warning/10 text-warning border-warning/20;
+    background-color: hsl(38 92% 50% / 0.1);
+    color: hsl(38 92% 50%);
+    border-color: hsl(38 92% 50% / 0.2);
   }
 
   /* Gradient text */
@@ -181,15 +172,18 @@
 
   /* Sidebar link styles */
   .sidebar-link {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground/70 transition-all duration-200;
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200;
+    color: hsl(var(--sidebar-foreground) / 0.7);
   }
 
   .sidebar-link:hover {
-    @apply bg-sidebar-accent text-sidebar-foreground;
+    background-color: hsl(var(--sidebar-accent));
+    color: hsl(var(--sidebar-foreground));
   }
 
   .sidebar-link.active {
-    @apply bg-sidebar-primary text-sidebar-primary-foreground;
+    background-color: hsl(var(--sidebar-primary));
+    color: hsl(var(--sidebar-primary-foreground));
   }
 
   /* Loading skeleton animation */
@@ -210,10 +204,6 @@
   .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-border rounded-full;
   }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/30;
-  }
 }
 
 @layer utilities {
@@ -229,20 +219,12 @@
     background: var(--gradient-accent);
   }
 
-  .shadow-glow {
-    box-shadow: var(--shadow-glow);
-  }
-
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
   }
 
   .animate-slide-up {
     animation: slideUp 0.4s ease-out;
-  }
-
-  .animate-scale-in {
-    animation: scaleIn 0.2s ease-out;
   }
 
   @keyframes fadeIn {
@@ -258,17 +240,6 @@
     to { 
       opacity: 1; 
       transform: translateY(0); 
-    }
-  }
-
-  @keyframes scaleIn {
-    from { 
-      opacity: 0; 
-      transform: scale(0.95); 
-    }
-    to { 
-      opacity: 1; 
-      transform: scale(1); 
     }
   }
 }

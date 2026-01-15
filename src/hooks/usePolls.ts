@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { ActivityPoll, PollOption, Vote } from '@/types/database';
+import { ActivityPoll, PollOption, VoteBasic } from '@/types/database';
 import { useToast } from '@/hooks/use-toast';
 
 export const usePolls = () => {
@@ -26,17 +26,23 @@ export const usePolls = () => {
 
       if (pollsError) throw pollsError;
 
-      const enrichedPolls = (pollsData || []).map((poll) => ({
-        ...poll,
-        options: poll.options?.map((option: PollOption & { votes: Vote[] }) => ({
+      const enrichedPolls: ActivityPoll[] = (pollsData || []).map((poll) => {
+        const options = (poll.options || []).map((option: PollOption & { votes: VoteBasic[] }) => ({
           ...option,
           vote_count: option.votes?.length || 0,
-        })),
-        vote_count: poll.options?.reduce(
-          (sum: number, opt: { votes?: Vote[] }) => sum + (opt.votes?.length || 0),
+        }));
+        
+        const totalVotes = options.reduce(
+          (sum: number, opt: PollOption) => sum + (opt.vote_count || 0),
           0
-        ) || 0,
-      }));
+        );
+
+        return {
+          ...poll,
+          options,
+          vote_count: totalVotes,
+        };
+      });
 
       setPolls(enrichedPolls);
     } catch (error) {
@@ -113,7 +119,7 @@ export const usePolls = () => {
         .select('id')
         .eq('poll_id', pollId)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (existingVote) {
         toast({
@@ -182,7 +188,7 @@ export const usePolls = () => {
       if (!poll?.options) return null;
 
       for (const option of poll.options) {
-        const vote = option.votes?.find((v: Vote) => v.user_id === user.id);
+        const vote = option.votes?.find((v) => v.user_id === user.id);
         if (vote) return option.id;
       }
       return null;
