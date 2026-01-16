@@ -48,7 +48,6 @@ import {
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { log } from 'console';
 
 // Role constants matching the migration
 const ROLE_IDS = {
@@ -81,10 +80,10 @@ const ManageUsers: React.FC = () => {
       if (error) throw error;
 
       // Ensure role_id is properly set for all users
-      const usersWithRoles = (data || []).map(user => ({
+      const usersWithRoles = ((data || []) as any[]).map((user: any) => ({
         ...user,
         role_id: user.role_id || ROLE_IDS.USER // Default to USER if null
-      }));
+      })) as ProfileWithRole[];
 
       setUsers(usersWithRoles);
     } catch (error) {
@@ -116,24 +115,18 @@ const ManageUsers: React.FC = () => {
     try {
       const isCurrentlyAdmin = selectedUser.role_id === ROLE_IDS.ADMIN;
       const newRoleId = isCurrentlyAdmin ? ROLE_IDS.USER : ROLE_IDS.ADMIN;
-      
-      console.log('Updating role for user:', selectedUser.id);
-      console.log('Current role_id:', selectedUser.role_id);
-      console.log('New role_id:', newRoleId);
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('profiles')
-        .update({ role_id: newRoleId })
+        .update({ role_id: newRoleId } as any)
         .eq('id', selectedUser.id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) {
         console.error('Supabase error:', error);
         throw error;
       }
-
-      console.log('Update successful:', data);
 
       toast({
         title: 'Role updated',
