@@ -269,27 +269,27 @@ export const usePolls = () => {
       .subscribe();
 
     // Check for expired polls every 30 seconds
-    const checkExpiredPolls = async () => {
-      try {
-        // Call the process_expired_polls function
-        const { error } = await supabase.rpc('process_expired_polls');
-        if (error) {
-          console.error('Error processing expired polls:', error);
-        }
-      } catch (error) {
-        console.error('Error checking expired polls:', error);
-      }
-    };
+    // const checkExpiredPolls = async () => {
+    //   try {
+    //     // Call the process_expired_polls function
+    //     const { error } = await supabase.rpc('process_expired_polls');
+    //     if (error) {
+    //       console.error('Error processing expired polls:', error);
+    //     }
+    //   } catch (error) {
+    //     console.error('Error checking expired polls:', error);
+    //   }
+    // };
 
-    // Initial check
-    checkExpiredPolls();
+    // // Initial check
+    // checkExpiredPolls();
 
-    // Set up interval to check every 30 seconds
-    const pollCheckInterval = setInterval(checkExpiredPolls, 30000);
+    // // Set up interval to check every 30 seconds
+    // const pollCheckInterval = setInterval(checkExpiredPolls, 30000);
 
     return () => {
       supabase.removeChannel(pollsChannel);
-      clearInterval(pollCheckInterval);
+      // clearInterval(pollCheckInterval);
     };
   }, [fetchPolls]);
 
