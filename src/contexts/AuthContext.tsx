@@ -7,7 +7,6 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
-  roles: UserRole[];
   isAdmin: boolean;
   isLoading: boolean;
   signInWithGoogle: () => Promise<void>;
@@ -29,13 +28,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [roles, setRoles] = useState<UserRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isAdmin = roles.some(role => role.role === 'admin');
+  // Check if user is admin based on role_id
+  // Admin role ID: '00000000-0000-0000-0000-000000000002'
+  const isAdmin = profile?.role_id === '00000000-0000-0000-0000-000000000002';
 
   const fetchProfile = async (userId: string, retryCount = 0) => {
     try {
+      // Fetch profile with all fields
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -62,18 +63,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setProfile(profileData);
-
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (rolesError) {
-        console.error('Error fetching roles:', rolesError);
-        return;
-      }
-
-      setRoles(rolesData || []);
     } catch (error) {
       console.error('Error in fetchProfile:', error);
     }
@@ -99,7 +88,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }, 0);
         } else {
           setProfile(null);
-          setRoles([]);
         }
 
         setIsLoading(false);
@@ -144,7 +132,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     }
     setProfile(null);
-    setRoles([]);
   };
 
   return (
@@ -153,7 +140,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         session,
         profile,
-        roles,
         isAdmin,
         isLoading,
         signInWithGoogle,
