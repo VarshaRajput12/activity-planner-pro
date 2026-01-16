@@ -38,6 +38,7 @@ const Polls: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [newPoll, setNewPoll] = useState({
     title: '',
     description: '',
@@ -68,6 +69,28 @@ const Polls: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Helper function to truncate text to 50 words
+  const truncateToWords = (text: string, wordLimit: number = 10): { truncated: string; isTruncated: boolean } => {
+    const words = text.trim().split(/\s+/);
+    if (words.length <= wordLimit) {
+      return { truncated: text, isTruncated: false };
+    }
+    return { truncated: words.slice(0, wordLimit).join(' ') + '...', isTruncated: true };
+  };
+
+  // Helper function to toggle description expansion
+  const toggleDescriptionExpansion = (pollId: string) => {
+    setExpandedDescriptions((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(pollId)) {
+        newSet.delete(pollId);
+      } else {
+        newSet.add(pollId);
+      }
+      return newSet;
+    });
+  };
 
   // Helper function to format time remaining
   const getTimeRemaining = (expiresAt: string) => {
@@ -162,7 +185,7 @@ const Polls: React.FC = () => {
     // Check if poll is truly active (status is active AND not expired)
     const isPollActive = poll.status === 'active' && !isExpired;
 
-    const showFieldLabels = !isPollActive;
+    const showFieldLabels = true;
 
     return (
       <Card key={poll.id} className="card-elevated animate-slide-up">
@@ -215,9 +238,31 @@ const Polls: React.FC = () => {
                   {poll.description && (
                     <div className="space-y-1">
                       {showFieldLabels && (
-                        <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Description</p>
+                        <p id="description" className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Description</p>
                       )}
-                      <p className="text-sm text-muted-foreground leading-relaxed">{poll.description}</p>
+                      <div>
+                        {(() => {
+                          const { truncated, isTruncated } = truncateToWords(poll.description, 10);
+                          const isExpanded = expandedDescriptions.has(poll.id);
+                          return (
+                            <>
+                              <p className="text-sm text-muted-foreground leading-relaxed">
+                                {isExpanded ? poll.description : truncated}
+                              </p>
+                              {isTruncated && (
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="mt-2 h-auto p-0 text-accent hover:text-accent/80"
+                                  onClick={() => toggleDescriptionExpansion(poll.id)}
+                                >
+                                  {isExpanded ? 'Show Less' : 'Show More'}
+                                </Button>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
                   )}
                 </div>
