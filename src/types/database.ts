@@ -63,6 +63,8 @@ export interface ActivityPoll {
   created_by: string | null;
   status: PollStatus;
   expires_at: string;
+  event_date: string | null;
+  event_time: string | null;
   created_at: string;
   updated_at: string;
   creator?: ProfileBase;

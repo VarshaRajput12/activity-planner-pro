@@ -41,6 +41,8 @@ const Polls: React.FC = () => {
   const [newPoll, setNewPoll] = useState({
     title: '',
     description: '',
+    eventDate: '',
+    eventTime: '',
     expiresInHours: 0,
     expiresInMinutes: 0,
     expiresInSeconds: 0,
@@ -103,7 +105,9 @@ const Polls: React.FC = () => {
       newPoll.title,
       newPoll.description,
       expiresAt,
-      newPoll.options.filter((o) => o.title)
+      newPoll.options.filter((o) => o.title),
+      newPoll.eventDate || null,
+      newPoll.eventTime || null
     );
 
     if (result) {
@@ -111,6 +115,8 @@ const Polls: React.FC = () => {
       setNewPoll({
         title: '',
         description: '',
+        eventDate: '',
+        eventTime: '',
         expiresInHours: 0,
         expiresInMinutes: 0,
         expiresInSeconds: 0,
@@ -182,6 +188,18 @@ const Polls: React.FC = () => {
               <CardTitle className="text-xl">{poll.title}</CardTitle>
               {poll.description && (
                 <p className="text-muted-foreground mt-2">{poll.description}</p>
+              )}
+              {(poll.event_date || poll.event_time) && (
+                <div className="mt-3 p-3 bg-muted/50 rounded-md">
+                  <p className="text-sm font-medium text-foreground">
+                    📅 Event Schedule:
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {poll.event_date && format(new Date(poll.event_date), 'MMM dd, yyyy')}
+                    {poll.event_date && poll.event_time && ' at '}
+                    {poll.event_time && format(new Date(`2000-01-01T${poll.event_time}`), 'h:mm a')}
+                  </p>
+                </div>
               )}
             </div>
             {!isActive && isAdmin && (
@@ -321,6 +339,31 @@ const Polls: React.FC = () => {
                         onChange={(e) =>
                           setNewPoll((prev) => ({ ...prev, description: e.target.value }))
                         }
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="eventDate">Event Date </Label>
+                      <Input
+                        id="eventDate"
+                        type="date"
+                        value={newPoll.eventDate}
+                        onChange={(e) =>
+                          setNewPoll((prev) => ({ ...prev, eventDate: e.target.value }))
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="eventTime">Event Time </Label>
+                      <Input
+                        id="eventTime"
+                        type="time"
+                        value={newPoll.eventTime}
+                        onChange={(e) =>
+                          setNewPoll((prev) => ({ ...prev, eventTime: e.target.value }))
+                        }
                       />
                     </div>
 
@@ -334,13 +377,14 @@ const Polls: React.FC = () => {
                             type="number"
                             min={0}
                             max={720}
-                            value={newPoll.expiresInHours}
+                            value={newPoll.expiresInHours || ''}
                             onChange={(e) =>
                               setNewPoll((prev) => ({
                                 ...prev,
                                 expiresInHours: parseInt(e.target.value) || 0,
                               }))
                             }
+                            placeholder="0"
                           />
                         </div>
                         <div>
@@ -350,13 +394,14 @@ const Polls: React.FC = () => {
                             type="number"
                             min={0}
                             max={59}
-                            value={newPoll.expiresInMinutes}
+                            value={newPoll.expiresInMinutes || ''}
                             onChange={(e) =>
                               setNewPoll((prev) => ({
                                 ...prev,
                                 expiresInMinutes: parseInt(e.target.value) || 0,
                               }))
                             }
+                            placeholder="0"
                           />
                         </div>
                         <div>
@@ -366,13 +411,14 @@ const Polls: React.FC = () => {
                             type="number"
                             min={0}
                             max={59}
-                            value={newPoll.expiresInSeconds}
+                            value={newPoll.expiresInSeconds || ''}
                             onChange={(e) =>
                               setNewPoll((prev) => ({
                                 ...prev,
                                 expiresInSeconds: parseInt(e.target.value) || 0,
                               }))
                             }
+                            placeholder="0"
                           />
                         </div>
                       </div>
