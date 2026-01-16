@@ -188,35 +188,40 @@ const Polls: React.FC = () => {
                 )}
               </div>
               <div className="space-y-3">
-                {showFieldLabels && (
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Activity Name</p>
-                    <CardTitle className="text-xl font-medium text-foreground">{poll.title}</CardTitle>
-                  </div>
-                )}
-                {!showFieldLabels && <CardTitle className="text-xl">{poll.title}</CardTitle>}
-
-                {poll.description && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Activity Name */}
                   <div className="space-y-1">
                     {showFieldLabels && (
-                      <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Description</p>
+                      <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Activity Name</p>
                     )}
-                    <p className="text-muted-foreground leading-relaxed">{poll.description}</p>
+                    <CardTitle className="text-xl font-medium text-foreground">{poll.title}</CardTitle>
                   </div>
-                )}
-              </div>
-              {(poll.event_date || poll.event_time) && (
-                <div className="mt-3 p-3 bg-muted/50 rounded-md">
-                  <p className="text-sm font-medium text-foreground">
-                    📅 Event Schedule:
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {poll.event_date && format(new Date(poll.event_date), 'MMM dd, yyyy')}
-                    {poll.event_date && poll.event_time && ' at '}
-                    {poll.event_time && format(new Date(`2000-01-01T${poll.event_time}`), 'h:mm a')}
-                  </p>
+
+                  {/* Event Schedule */}
+                  {(poll.event_date || poll.event_time) && (
+                    <div className="space-y-1">
+                      {showFieldLabels && (
+                        <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Event Schedule</p>
+                      )}
+                      <p className="text-sm text-muted-foreground mt-1">
+                        📅 {poll.event_date && format(new Date(poll.event_date), 'MMM dd, yyyy')}
+                        {poll.event_date && poll.event_time && ' at '}
+                        {poll.event_time && format(new Date(`2000-01-01T${poll.event_time}`), 'h:mm a')}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Description */}
+                  {poll.description && (
+                    <div className="space-y-1">
+                      {showFieldLabels && (
+                        <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Description</p>
+                      )}
+                      <p className="text-sm text-muted-foreground leading-relaxed">{poll.description}</p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
             {/* {!isActive && isAdmin && (
               <Button variant="accent" size="sm" className="ml-4">
