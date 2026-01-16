@@ -36,6 +36,10 @@ const Sidebar: React.FC = () => {
     if (path === '/dashboard') {
       return location.pathname === '/dashboard' || location.pathname === '/';
     }
+    // Exact match for /admin to prevent matching /admin/users
+    if (path === '/admin') {
+      return location.pathname === '/admin';
+    }
     return location.pathname.startsWith(path);
   };
 
