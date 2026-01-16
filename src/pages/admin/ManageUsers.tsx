@@ -48,6 +48,7 @@ import {
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { log } from 'console';
 
 // Role constants matching the migration
 const ROLE_IDS = {
@@ -57,6 +58,7 @@ const ROLE_IDS = {
 
 interface ProfileWithRole extends Profile {
   role?: UserRole;
+  role_id: string;
 }
 
 const ManageUsers: React.FC = () => {
@@ -71,20 +73,20 @@ const ManageUsers: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      // After migration, you can uncomment the role join below
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
-        // Uncomment after migration is applied:
-        // .select(`
-        //   *,
-        //   role:user_roles(id, name)
-        // `)
+        .select('*, role_id')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      setUsers(data || []);
+      // Ensure role_id is properly set for all users
+      const usersWithRoles = (data || []).map(user => ({
+        ...user,
+        role_id: user.role_id || ROLE_IDS.USER // Default to USER if null
+      }));
+
+      setUsers(usersWithRoles);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -114,13 +116,24 @@ const ManageUsers: React.FC = () => {
     try {
       const isCurrentlyAdmin = selectedUser.role_id === ROLE_IDS.ADMIN;
       const newRoleId = isCurrentlyAdmin ? ROLE_IDS.USER : ROLE_IDS.ADMIN;
+      
+      console.log('Updating role for user:', selectedUser.id);
+      console.log('Current role_id:', selectedUser.role_id);
+      console.log('New role_id:', newRoleId);
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update({ role_id: newRoleId })
-        .eq('id', selectedUser.id);
+        .eq('id', selectedUser.id)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log('Update successful:', data);
 
       toast({
         title: 'Role updated',
@@ -134,7 +147,7 @@ const ManageUsers: React.FC = () => {
       console.error('Error updating role:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update user role',
+        description: error instanceof Error ? error.message : 'Failed to update user role',
         variant: 'destructive',
       });
     } finally {

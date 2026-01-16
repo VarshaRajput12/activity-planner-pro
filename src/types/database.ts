@@ -23,11 +23,14 @@ export interface ProfileBase extends ProfileMinimal {
 }
 
 // Full profile with timestamps and role
-export interface Profile extends ProfileBase {
-  role_id?: string; // Optional until migration is applied
+export interface Profile {
+  id: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  role_id: string; // UUID stored as string
   created_at: string;
   updated_at: string;
-  role?: UserRole;
 }
 
 // Poll option vote for counting
