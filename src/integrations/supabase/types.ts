@@ -430,6 +430,8 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      get_winning_poll_option: { Args: { poll_id_param: string }; Returns: string }
+      process_expired_polls: { Args: Record<string, never>; Returns: void }
     }
     Enums: {
       activity_status: "upcoming" | "ongoing" | "completed" | "cancelled"

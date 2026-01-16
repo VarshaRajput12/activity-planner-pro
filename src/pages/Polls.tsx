@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import { usePolls } from '@/hooks/usePolls';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,9 +34,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const Polls: React.FC = () => {
   const { user, isAdmin } = useAuth();
-  const { polls, isLoading, vote, getUserVote, createPoll, closePoll } = usePolls();
+  const { polls, isLoading, vote, getUserVote, createPoll, closePoll, changeVote } = usePolls();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [currentTime, setCurrentTime] = useState(Date.now());
   const [newPoll, setNewPoll] = useState({
     title: '',
     description: '',
@@ -46,8 +47,42 @@ const Polls: React.FC = () => {
     options: [{ title: '', description: '' }, { title: '', description: '' }],
   });
 
-  const activePolls = polls.filter((p) => p.status === 'active' && !isPast(new Date(p.expires_at)));
-  const closedPolls = polls.filter((p) => p.status !== 'active' || isPast(new Date(p.expires_at)));
+  const activePolls = polls.filter((p) => {
+    const expiryTime = new Date(p.expires_at).getTime();
+    return p.status === 'active' && currentTime < expiryTime;
+  });
+  const closedPolls = polls.filter((p) => {
+    const expiryTime = new Date(p.expires_at).getTime();
+    return p.status !== 'active' || currentTime >= expiryTime;
+  });
+
+  // Update countdown timer every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Helper function to format time remaining
+  const getTimeRemaining = (expiresAt: string) => {
+    const now = currentTime;
+    const expiry = new Date(expiresAt).getTime();
+    const diff = expiry - now;
+
+    if (diff <= 0) return 'Expired';
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+  };
 
   const handleCreatePoll = async () => {
     if (!newPoll.title || newPoll.options.filter((o) => o.title).length < 2) return;
@@ -113,7 +148,11 @@ const Polls: React.FC = () => {
   const renderPollCard = (poll: typeof polls[0], isActive: boolean) => {
     const userVote = getUserVote(poll.id);
     const totalVotes = poll.vote_count || 0;
-    const isExpired = isPast(new Date(poll.expires_at));
+    // Check expiry using real-time countdown - poll is expired if current time is past expiry
+    const expiryTime = new Date(poll.expires_at).getTime();
+    const isExpired = currentTime >= expiryTime;
+    // Check if poll is truly active (status is active AND not expired)
+    const isPollActive = poll.status === 'active' && !isExpired;
 
     return (
       <Card key={poll.id} className="card-elevated animate-slide-up">
@@ -124,12 +163,12 @@ const Polls: React.FC = () => {
                 <Badge
                   variant="outline"
                   className={
-                    isActive && !isExpired
+                    isPollActive
                       ? 'bg-success/10 text-success border-success/20'
                       : 'bg-muted text-muted-foreground'
                   }
                 >
-                  {isActive && !isExpired ? 'Active' : 'Closed'}
+                  {isPollActive ? 'Active' : 'Closed'}
                 </Badge>
                 {userVote && (
                   <Badge variant="outline" className="bg-accent/10 text-accent border-accent/20">
@@ -165,7 +204,7 @@ const Polls: React.FC = () => {
               <Clock className="w-4 h-4" />
               {isExpired
                 ? `Ended ${formatDistanceToNow(new Date(poll.expires_at), { addSuffix: true })}`
-                : `Ends ${formatDistanceToNow(new Date(poll.expires_at), { addSuffix: true })}`}
+                : `Ends in ${getTimeRemaining(poll.expires_at)}`}
             </span>
           </div>
         </CardHeader>
@@ -175,7 +214,9 @@ const Polls: React.FC = () => {
             const voteCount = option.vote_count || 0;
             const percentage = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
             const isUserVote = userVote === option.id;
-            const canVote = isActive && !isExpired && !userVote;
+            const canInteract = isPollActive;
+            const canVote = canInteract && !userVote;
+            const canChange = canInteract && userVote && !isUserVote;
 
             return (
               <button
@@ -183,12 +224,18 @@ const Polls: React.FC = () => {
                 className={`w-full p-4 rounded-lg border transition-all text-left ${
                   isUserVote
                     ? 'border-accent bg-accent/5'
-                    : canVote
+                    : canVote || canChange
                     ? 'border-border hover:border-accent/50 hover:bg-muted/50 cursor-pointer'
                     : 'border-border cursor-default'
                 }`}
-                onClick={() => canVote && vote(poll.id, option.id)}
-                disabled={!canVote}
+                onClick={() => {
+                  if (canVote) {
+                    vote(poll.id, option.id);
+                  } else if (canChange) {
+                    changeVote(poll.id, option.id);
+                  }
+                }}
+                disabled={!canVote && !canChange}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -207,7 +254,7 @@ const Polls: React.FC = () => {
             );
           })}
 
-          {isAdmin && isActive && !isExpired && (
+          {isAdmin && isPollActive && (
             <div className="pt-4 flex justify-end">
               <Button variant="outline" size="sm" onClick={() => closePoll(poll.id)}>
                 Close Poll

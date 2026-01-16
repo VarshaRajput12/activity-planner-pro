@@ -156,6 +156,55 @@ export const usePolls = () => {
     }
   };
 
+  const changeVote = async (pollId: string, newOptionId: string) => {
+    if (!user) return false;
+
+    try {
+      // Get the user's existing vote
+      const { data: existingVote, error: fetchError } = await supabase
+        .from('votes')
+        .select('id, option_id')
+        .eq('poll_id', pollId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      if (!existingVote) {
+        toast({
+          title: 'No existing vote',
+          description: 'You haven\'t voted on this poll yet',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      // Update the vote to the new option
+      const { error: updateError } = await supabase
+        .from('votes')
+        .update({ option_id: newOptionId })
+        .eq('id', existingVote.id);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: 'Vote changed',
+        description: 'Your vote has been updated',
+      });
+
+      await fetchPolls();
+      return true;
+    } catch (error) {
+      console.error('Error changing vote:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to change vote',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   const closePoll = async (pollId: string) => {
     try {
       const { error } = await supabase
@@ -219,8 +268,28 @@ export const usePolls = () => {
       )
       .subscribe();
 
+    // Check for expired polls every 30 seconds
+    const checkExpiredPolls = async () => {
+      try {
+        // Call the process_expired_polls function
+        const { error } = await supabase.rpc('process_expired_polls');
+        if (error) {
+          console.error('Error processing expired polls:', error);
+        }
+      } catch (error) {
+        console.error('Error checking expired polls:', error);
+      }
+    };
+
+    // Initial check
+    checkExpiredPolls();
+
+    // Set up interval to check every 30 seconds
+    const pollCheckInterval = setInterval(checkExpiredPolls, 30000);
+
     return () => {
       supabase.removeChannel(pollsChannel);
+      clearInterval(pollCheckInterval);
     };
   }, [fetchPolls]);
 
@@ -229,6 +298,7 @@ export const usePolls = () => {
     isLoading,
     createPoll,
     vote,
+    changeVote,
     closePoll,
     getUserVote,
     refetch: fetchPolls,
