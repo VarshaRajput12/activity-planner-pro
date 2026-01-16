@@ -56,6 +56,8 @@ const Polls: React.FC = () => {
     return p.status !== 'active' || currentTime >= expiryTime;
   });
 
+
+
   // Update countdown timer every second
   useEffect(() => {
     const interval = setInterval(() => {
@@ -182,6 +184,12 @@ const Polls: React.FC = () => {
                 <p className="text-muted-foreground mt-2">{poll.description}</p>
               )}
             </div>
+            {!isActive && isAdmin && (
+              <Button variant="accent" size="sm" className="ml-4">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Activity
+              </Button>
+            )}
           </div>
 
           <div className="flex items-center gap-4 text-sm text-muted-foreground mt-4">
@@ -253,18 +261,11 @@ const Polls: React.FC = () => {
               </button>
             );
           })}
-
-          {isAdmin && isPollActive && (
-            <div className="pt-4 flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => closePoll(poll.id)}>
-                Close Poll
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
     );
   };
+
 
   return (
     <div className="min-h-screen">
@@ -474,6 +475,7 @@ const Polls: React.FC = () => {
                     <p className="text-muted-foreground">
                       Closed polls will appear here
                     </p>
+                    
                   </CardContent>
                 </Card>
               ) : (
