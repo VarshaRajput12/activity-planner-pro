@@ -37,7 +37,7 @@ const Activities: React.FC = () => {
   const { activities, isLoading, respondToActivity, getUserResponse } = useActivities();
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [isResponding, setIsResponding] = useState(false);
+  const [respondingActivityId, setRespondingActivityId] = useState<string | null>(null);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
 
   const upcomingActivities = activities.filter((a) => a.status === 'upcoming');
@@ -47,17 +47,17 @@ const Activities: React.FC = () => {
   );
 
   const handleAccept = async (activity: Activity) => {
-    setIsResponding(true);
+    setRespondingActivityId(activity.id);
     await respondToActivity(activity.id, 'accepted');
-    setIsResponding(false);
+    setRespondingActivityId(null);
   };
 
   const handleReject = async () => {
     if (!selectedActivity || !rejectionReason.trim()) return;
 
-    setIsResponding(true);
+    setRespondingActivityId(selectedActivity.id);
     await respondToActivity(selectedActivity.id, 'rejected', rejectionReason);
-    setIsResponding(false);
+    setRespondingActivityId(null);
     setShowRejectDialog(false);
     setRejectionReason('');
     setSelectedActivity(null);
@@ -165,9 +165,9 @@ const Activities: React.FC = () => {
                 variant="success"
                 className="flex-1"
                 onClick={() => handleAccept(activity)}
-                disabled={isResponding}
+                disabled={respondingActivityId === activity.id}
               >
-                {isResponding ? (
+                {respondingActivityId === activity.id ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
@@ -180,7 +180,7 @@ const Activities: React.FC = () => {
                 variant="outline"
                 className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10"
                 onClick={() => openRejectDialog(activity)}
-                disabled={isResponding}
+                disabled={respondingActivityId === activity.id}
               >
                 <XCircle className="w-4 h-4 mr-2" />
                 Reject
@@ -195,9 +195,9 @@ const Activities: React.FC = () => {
                   variant="success"
                   className="flex-1"
                   onClick={() => handleAccept(activity)}
-                  disabled={isResponding}
+                  disabled={respondingActivityId === activity.id}
                 >
-                  {isResponding ? (
+                  {respondingActivityId === activity.id ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <>
@@ -212,7 +212,7 @@ const Activities: React.FC = () => {
                   variant="outline"
                   className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10"
                   onClick={() => openRejectDialog(activity)}
-                  disabled={isResponding}
+                  disabled={respondingActivityId === activity.id}
                 >
                   <XCircle className="w-4 h-4 mr-2" />
                   Change to Reject
@@ -363,9 +363,9 @@ const Activities: React.FC = () => {
             <Button
               variant="destructive"
               onClick={handleReject}
-              disabled={isResponding || !rejectionReason.trim()}
+              disabled={respondingActivityId !== null || !rejectionReason.trim()}
             >
-              {isResponding && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {respondingActivityId && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Confirm Rejection
             </Button>
           </DialogFooter>
