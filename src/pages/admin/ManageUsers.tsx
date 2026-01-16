@@ -48,6 +48,14 @@ import {
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { log } from 'console';
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from '@/components/ui/select';
 
 // Role constants matching the migration
 const ROLE_IDS = {
@@ -69,6 +77,7 @@ const ManageUsers: React.FC = () => {
   const [isChangeRoleDialogOpen, setIsChangeRoleDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<ProfileWithRole | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -80,10 +89,11 @@ const ManageUsers: React.FC = () => {
       if (error) throw error;
 
       // Ensure role_id is properly set for all users
-      const usersWithRoles = ((data || []) as any[]).map((user: any) => ({
-        ...user,
-        role_id: user.role_id || ROLE_IDS.USER // Default to USER if null
-      })) as ProfileWithRole[];
+      const rows = (data || []) as any[];
+      const usersWithRoles = rows.map((row) => ({
+        ...row,
+        role_id: row.role_id || ROLE_IDS.USER // Default to USER if null
+      }));
 
       setUsers(usersWithRoles);
     } catch (error) {
@@ -98,15 +108,40 @@ const ManageUsers: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (isAdmin) {
-      fetchData();
+  const handleStatusChange = async (userProfile: ProfileWithRole, value: 'active' | 'inactive') => {
+    if (!isAdmin || !user) return;
+    if (userProfile.id === user.id) {
+      toast({ title: 'Not allowed', description: 'You cannot change your own active status', variant: 'destructive' });
+      return;
     }
-  }, [isAdmin]);
 
-  if (!isAdmin) {
-    return <Navigate to="/dashboard" replace />;
-  }
+    const newActive = value === 'active';
+    setUpdatingStatusId(userProfile.id);
+
+    // optimistic UI update
+    setUsers(prev => prev.map(u => u.id === userProfile.id ? { ...u, status: newActive ? 'Active' : 'Inactive' } : u));
+
+    try {
+      const newStatus = newActive ? 'Active' : 'Inactive';
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ status: newStatus })
+        .eq('id', userProfile.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({ title: 'Status updated', description: `${userProfile.full_name || userProfile.email} is now ${data?.status ?? newStatus}` });
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      // revert optimistic update
+      setUsers(prev => prev.map(u => u.id === userProfile.id ? { ...u, status: userProfile.status ?? 'Active' } : u));
+      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
 
   const handleToggleRole = async () => {
     if (!selectedUser || !user) return;
@@ -115,18 +150,24 @@ const ManageUsers: React.FC = () => {
     try {
       const isCurrentlyAdmin = selectedUser.role_id === ROLE_IDS.ADMIN;
       const newRoleId = isCurrentlyAdmin ? ROLE_IDS.USER : ROLE_IDS.ADMIN;
+      
+      console.log('Updating role for user:', selectedUser.id);
+      console.log('Current role_id:', selectedUser.role_id);
+      console.log('New role_id:', newRoleId);
 
-      const { data, error } = await (supabase
+      const { data, error } = await supabase
         .from('profiles')
-        .update({ role_id: newRoleId } as any)
+        .update({ role_id: newRoleId })
         .eq('id', selectedUser.id)
         .select()
-        .single() as any);
+        .single();
 
       if (error) {
         console.error('Supabase error:', error);
         throw error;
       }
+
+      console.log('Update successful:', data);
 
       toast({
         title: 'Role updated',
@@ -163,6 +204,16 @@ const ManageUsers: React.FC = () => {
 
   const adminUsers = filteredUsers.filter(u => u.role_id === ROLE_IDS.ADMIN);
   const regularUsers = filteredUsers.filter(u => u.role_id === ROLE_IDS.USER);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchData();
+    }
+  }, [isAdmin]);
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="min-h-screen">
@@ -266,6 +317,7 @@ const ManageUsers: React.FC = () => {
                     <TableHead>Joined</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Actions</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -314,6 +366,21 @@ const ManageUsers: React.FC = () => {
                           >
                             <UserCog className="w-4 h-4" />
                           </Button>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={(userProfile.status ?? 'Active') === 'Active' ? 'active' : 'inactive'}
+                            onValueChange={(v) => handleStatusChange(userProfile, v as 'active' | 'inactive')}
+                            disabled={!isAdmin || isCurrentUser || updatingStatusId === userProfile.id}
+                          >
+                            <SelectTrigger className="w-36">
+                              <SelectValue placeholder={userProfile.status ?? 'Active'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="inactive">Inactive</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                       </TableRow>
                     );
