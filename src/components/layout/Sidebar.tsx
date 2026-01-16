@@ -15,10 +15,52 @@ import {
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Sidebar: React.FC = () => {
-  const { profile, isAdmin, signOut } = useAuth();
+  const { profile, isAdmin, signOut, refreshProfile } = useAuth();
+  const { toast } = useToast();
   const location = useLocation();
+
+  const [isActive, setIsActive] = React.useState<boolean | null>(null);
+  const [isUpdating, setIsUpdating] = React.useState(false);
+
+  React.useEffect(() => {
+    // The DB currently stores a text `status` column with values like 'Active'/'Inactive'.
+    setIsActive(profile?.status ? profile.status === 'Active' : null);
+  }, [profile]);
+
+  const handleToggle = async (checked: boolean) => {
+    if (!profile) return;
+    const previous = isActive;
+    setIsActive(checked);
+    setIsUpdating(true);
+    try {
+      // Update the existing text `status` column to match the schema you're using in the database.
+      const newStatus = checked ? 'Active' : 'Inactive';
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ status: newStatus })
+        .eq('id', profile.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // update local state from returned row if present
+      setIsActive((data?.status ?? newStatus) === 'Active');
+      await refreshProfile();
+      toast({ title: 'Status updated', description: `Your status is now ${(data?.status ?? newStatus)}` });
+    } catch (err: any) {
+      console.error('Failed to update active status:', err);
+      setIsActive(previous);
+      toast({ title: 'Failed to update status', description: err?.message ?? String(err), variant: 'destructive' });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const userLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -32,9 +74,13 @@ const Sidebar: React.FC = () => {
     { href: '/admin/users', label: 'Manage Users', icon: Users },
   ];
 
-  const isActive = (path: string) => {
+  const isActiveLink = (path: string) => {
     if (path === '/dashboard') {
       return location.pathname === '/dashboard' || location.pathname === '/';
+    }
+    // Exact match for /admin to prevent matching /admin/users
+    if (path === '/admin') {
+      return location.pathname === '/admin';
     }
     return location.pathname.startsWith(path);
   };
@@ -72,7 +118,7 @@ const Sidebar: React.FC = () => {
               to={link.href}
               className={cn(
                 'sidebar-link',
-                isActive(link.href) && 'active'
+                isActiveLink(link.href) && 'active'
               )}
             >
               <link.icon className="w-5 h-5" />
@@ -92,7 +138,7 @@ const Sidebar: React.FC = () => {
                 to={link.href}
                 className={cn(
                   'sidebar-link',
-                  isActive(link.href) && 'active'
+                  isActiveLink(link.href) && 'active'
                 )}
               >
                 <link.icon className="w-5 h-5" />
@@ -120,6 +166,14 @@ const Sidebar: React.FC = () => {
               {isAdmin ? 'Administrator' : 'Member'}
             </p>
           </div>
+        </div>
+        {/* Active / Inactive toggle */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-xs text-sidebar-foreground/60">Status</p>
+            <p className="text-sm font-medium">{isActive ? 'Active' : 'Inactive'}</p>
+          </div>
+          <Switch checked={!!isActive} onCheckedChange={handleToggle} disabled={isUpdating} />
         </div>
         <Button
           variant="ghost"
