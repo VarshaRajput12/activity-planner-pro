@@ -184,12 +184,12 @@ const Polls: React.FC = () => {
                 <p className="text-muted-foreground mt-2">{poll.description}</p>
               )}
             </div>
-            {!isActive && isAdmin && (
+            {/* {!isActive && isAdmin && (
               <Button variant="accent" size="sm" className="ml-4">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Activity
               </Button>
-            )}
+            )} */}
           </div>
 
           <div className="flex items-center gap-4 text-sm text-muted-foreground mt-4">
