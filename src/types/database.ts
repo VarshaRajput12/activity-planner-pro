@@ -1,7 +1,14 @@
-export type AppRole = 'admin' | 'user';
+export type AppRole = 'Admin' | 'User';
 export type ParticipationStatus = 'pending' | 'accepted' | 'rejected';
 export type PollStatus = 'active' | 'closed' | 'resolved';
 export type ActivityStatus = 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+
+// Role lookup table
+export interface UserRole {
+  id: string;
+  name: AppRole;
+  created_at: string;
+}
 
 // Minimal profile for nested queries (doesn't always include all fields)
 export interface ProfileMinimal {
@@ -15,24 +22,12 @@ export interface ProfileBase extends ProfileMinimal {
   email: string;
 }
 
-// Full profile with timestamps
+// Full profile with timestamps and role
 export interface Profile extends ProfileBase {
+  role_id?: string; // Optional until migration is applied
   created_at: string;
   updated_at: string;
-}
-
-export interface Admin {
-  id: string;
-  email: string;
-  added_by: string | null;
-  created_at: string;
-}
-
-export interface UserRole {
-  id: string;
-  user_id: string;
-  role: AppRole;
-  created_at: string;
+  role?: UserRole;
 }
 
 // Poll option vote for counting

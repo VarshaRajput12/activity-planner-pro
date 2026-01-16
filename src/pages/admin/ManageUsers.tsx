@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Profile, Admin } from '@/types/database';
+import { Profile, UserRole } from '@/types/database';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import {
   Table,
@@ -31,39 +41,50 @@ import {
   Users,
   Shield,
   ShieldOff,
-  Plus,
   Search,
   Loader2,
-  Trash2,
   UserCog,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
+// Role constants matching the migration
+const ROLE_IDS = {
+  USER: '00000000-0000-0000-0000-000000000001',
+  ADMIN: '00000000-0000-0000-0000-000000000002',
+};
+
+interface ProfileWithRole extends Profile {
+  role?: UserRole;
+}
+
 const ManageUsers: React.FC = () => {
   const { isAdmin, user } = useAuth();
   const { toast } = useToast();
-  const [users, setUsers] = useState<Profile[]>([]);
-  const [admins, setAdmins] = useState<Admin[]>([]);
+  const [users, setUsers] = useState<ProfileWithRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
-  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [isChangeRoleDialogOpen, setIsChangeRoleDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<ProfileWithRole | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchData = async () => {
     try {
-      const [usersRes, adminsRes] = await Promise.all([
-        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-        supabase.from('admins').select('*'),
-      ]);
+      // After migration, you can uncomment the role join below
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        // Uncomment after migration is applied:
+        // .select(`
+        //   *,
+        //   role:user_roles(id, name)
+        // `)
+        .order('created_at', { ascending: false });
 
-      if (usersRes.error) throw usersRes.error;
-      if (adminsRes.error) throw adminsRes.error;
+      if (error) throw error;
 
-      setUsers(usersRes.data || []);
-      setAdmins(adminsRes.data || []);
+      setUsers(data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -86,44 +107,34 @@ const ManageUsers: React.FC = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const isUserAdmin = (email: string) => {
-    return admins.some((a) => a.email.toLowerCase() === email.toLowerCase());
-  };
-
-  const handleAddAdmin = async () => {
-    if (!newAdminEmail.trim() || !user) return;
+  const handleToggleRole = async () => {
+    if (!selectedUser || !user) return;
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('admins').insert({
-        email: newAdminEmail.toLowerCase().trim(),
-        added_by: user.id,
+      const isCurrentlyAdmin = selectedUser.role_id === ROLE_IDS.ADMIN;
+      const newRoleId = isCurrentlyAdmin ? ROLE_IDS.USER : ROLE_IDS.ADMIN;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role_id: newRoleId })
+        .eq('id', selectedUser.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Role updated',
+        description: `${selectedUser.full_name || selectedUser.email} is now ${isCurrentlyAdmin ? 'a User' : 'an Admin'}`,
       });
 
-      if (error) {
-        if (error.code === '23505') {
-          toast({
-            title: 'Already an admin',
-            description: 'This email is already in the admin list',
-            variant: 'destructive',
-          });
-        } else {
-          throw error;
-        }
-      } else {
-        toast({
-          title: 'Admin added',
-          description: `${newAdminEmail} has been added as an admin`,
-        });
-        setNewAdminEmail('');
-        setIsAddAdminOpen(false);
-        await fetchData();
-      }
+      setIsChangeRoleDialogOpen(false);
+      setSelectedUser(null);
+      await fetchData();
     } catch (error) {
-      console.error('Error adding admin:', error);
+      console.error('Error updating role:', error);
       toast({
         title: 'Error',
-        description: 'Failed to add admin',
+        description: 'Failed to update user role',
         variant: 'destructive',
       });
     } finally {
@@ -131,25 +142,9 @@ const ManageUsers: React.FC = () => {
     }
   };
 
-  const handleRemoveAdmin = async (adminId: string, email: string) => {
-    try {
-      const { error } = await supabase.from('admins').delete().eq('id', adminId);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Admin removed',
-        description: `${email} has been removed from admins`,
-      });
-      await fetchData();
-    } catch (error) {
-      console.error('Error removing admin:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to remove admin',
-        variant: 'destructive',
-      });
-    }
+  const openRoleChangeDialog = (userProfile: ProfileWithRole) => {
+    setSelectedUser(userProfile);
+    setIsChangeRoleDialogOpen(true);
   };
 
   const filteredUsers = users.filter((u) => {
@@ -160,62 +155,21 @@ const ManageUsers: React.FC = () => {
     );
   });
 
+  const adminUsers = filteredUsers.filter(u => u.role_id === ROLE_IDS.ADMIN);
+  const regularUsers = filteredUsers.filter(u => u.role_id === ROLE_IDS.USER);
+
   return (
     <div className="min-h-screen">
       <Header title="Manage Users" subtitle="View and manage user roles" />
 
       <div className="p-8 space-y-8 animate-fade-in">
-        {/* Admin Management */}
+        {/* Admin Users */}
         <Card className="card-elevated">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="w-5 h-5 text-accent" />
-              Admin Users
+              Admin Users ({adminUsers.length})
             </CardTitle>
-            <Dialog open={isAddAdminOpen} onOpenChange={setIsAddAdminOpen}>
-              <DialogTrigger asChild>
-                <Button variant="accent" size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Admin
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Admin</DialogTitle>
-                  <DialogDescription>
-                    Enter the email address of the user you want to make an admin.
-                    They will receive admin privileges on their next login.
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="user@example.com"
-                      value={newAdminEmail}
-                      onChange={(e) => setNewAdminEmail(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsAddAdminOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="accent"
-                    onClick={handleAddAdmin}
-                    disabled={isSubmitting || !newAdminEmail.trim()}
-                  >
-                    {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Add Admin
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -224,49 +178,44 @@ const ManageUsers: React.FC = () => {
                   <Skeleton key={i} className="h-16 w-full" />
                 ))}
               </div>
-            ) : admins.length === 0 ? (
+            ) : adminUsers.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground">
                 No admins configured yet
               </p>
             ) : (
               <div className="space-y-3">
-                {admins.map((admin) => {
-                  const userProfile = users.find(
-                    (u) => u.email.toLowerCase() === admin.email.toLowerCase()
-                  );
-
-                  return (
-                    <div
-                      key={admin.id}
-                      className="flex items-center justify-between p-4 rounded-lg border border-border"
-                    >
-                      <div className="flex items-center gap-4">
-                        <Avatar className="w-10 h-10">
-                          <AvatarImage src={userProfile?.avatar_url || undefined} />
-                          <AvatarFallback>
-                            {admin.email[0].toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">
-                            {userProfile?.full_name || admin.email}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {admin.email}
-                          </p>
-                        </div>
+                {adminUsers.map((userProfile) => (
+                  <div
+                    key={userProfile.id}
+                    className="flex items-center justify-between p-4 rounded-lg border border-border"
+                  >
+                    <div className="flex items-center gap-4">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={userProfile.avatar_url || undefined} />
+                        <AvatarFallback>
+                          {userProfile.email[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">
+                          {userProfile.full_name || userProfile.email}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {userProfile.email}
+                        </p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleRemoveAdmin(admin.id, admin.email)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
-                  );
-                })}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openRoleChangeDialog(userProfile)}
+                      disabled={userProfile.id === user?.id}
+                    >
+                      <ShieldOff className="w-4 h-4 mr-2" />
+                      Remove Admin
+                    </Button>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
@@ -310,48 +259,104 @@ const ManageUsers: React.FC = () => {
                     <TableHead>Email</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((userProfile) => (
-                    <TableRow key={userProfile.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src={userProfile.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs">
-                              {userProfile.full_name?.[0] || userProfile.email[0].toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">
-                            {userProfile.full_name || 'Unknown'}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {userProfile.email}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {format(new Date(userProfile.created_at), 'MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        {isUserAdmin(userProfile.email) ? (
-                          <Badge className="bg-accent/10 text-accent border-accent/20">
-                            <Shield className="w-3 h-3 mr-1" />
-                            Admin
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">User</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredUsers.map((userProfile) => {
+                    const isUserAdmin = userProfile.role_id === ROLE_IDS.ADMIN;
+                    const isCurrentUser = userProfile.id === user?.id;
+
+                    return (
+                      <TableRow key={userProfile.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8">
+                              <AvatarImage src={userProfile.avatar_url || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {userProfile.full_name?.[0] || userProfile.email[0].toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">
+                              {userProfile.full_name || 'Unknown'}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {userProfile.email}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {format(new Date(userProfile.created_at), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          {isUserAdmin ? (
+                            <Badge className="bg-accent/10 text-accent border-accent/20">
+                              <Shield className="w-3 h-3 mr-1" />
+                              Admin
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">User</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openRoleChangeDialog(userProfile)}
+                            disabled={isCurrentUser}
+                            title={isCurrentUser ? "You cannot change your own role" : "Change user role"}
+                          >
+                            <UserCog className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Role Change Confirmation Dialog */}
+      <AlertDialog open={isChangeRoleDialogOpen} onOpenChange={setIsChangeRoleDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change User Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedUser && (
+                <>
+                  Are you sure you want to change{' '}
+                  <strong>{selectedUser.full_name || selectedUser.email}</strong>'s role to{' '}
+                  <strong>
+                    {selectedUser.role_id === ROLE_IDS.ADMIN ? 'User' : 'Admin'}
+                  </strong>?
+                  {selectedUser.role_id === ROLE_IDS.ADMIN ? (
+                    <span className="block mt-2 text-sm">
+                      This will remove their admin privileges.
+                    </span>
+                  ) : (
+                    <span className="block mt-2 text-sm">
+                      This will grant them full admin access to manage activities, users, and polls.
+                    </span>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleToggleRole}
+              disabled={isSubmitting}
+            >
+              {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Change Role
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
