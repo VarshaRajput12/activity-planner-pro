@@ -173,7 +173,11 @@ const Sidebar: React.FC = () => {
             <p className="text-xs text-sidebar-foreground/60">Status</p>
             <p className="text-sm font-medium">{isActive ? 'Active' : 'Inactive'}</p>
           </div>
-          <Switch checked={!!isActive} onCheckedChange={handleToggle} disabled={isUpdating} />
+          <div className="flex items-center gap-3">
+            <span className={cn('text-xs', !isActive ? 'text-sidebar-foreground font-medium' : 'text-sidebar-foreground/60')}>Inactive</span>
+            <Switch checked={!!isActive} onCheckedChange={handleToggle} disabled={isUpdating} />
+            <span className={cn('text-xs', isActive ? 'text-sidebar-foreground font-medium' : 'text-sidebar-foreground/60')}>Active</span>
+          </div>
         </div>
         <Button
           variant="ghost"
