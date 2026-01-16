@@ -162,6 +162,8 @@ const Polls: React.FC = () => {
     // Check if poll is truly active (status is active AND not expired)
     const isPollActive = poll.status === 'active' && !isExpired;
 
+    const showFieldLabels = !isPollActive;
+
     return (
       <Card key={poll.id} className="card-elevated animate-slide-up">
         <CardHeader>
@@ -185,10 +187,24 @@ const Polls: React.FC = () => {
                   </Badge>
                 )}
               </div>
-              <CardTitle className="text-xl">{poll.title}</CardTitle>
-              {poll.description && (
-                <p className="text-muted-foreground mt-2">{poll.description}</p>
-              )}
+              <div className="space-y-3">
+                {showFieldLabels && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Activity Name</p>
+                    <CardTitle className="text-xl font-medium text-foreground">{poll.title}</CardTitle>
+                  </div>
+                )}
+                {!showFieldLabels && <CardTitle className="text-xl">{poll.title}</CardTitle>}
+
+                {poll.description && (
+                  <div className="space-y-1">
+                    {showFieldLabels && (
+                      <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Description</p>
+                    )}
+                    <p className="text-muted-foreground leading-relaxed">{poll.description}</p>
+                  </div>
+                )}
+              </div>
               {(poll.event_date || poll.event_time) && (
                 <div className="mt-3 p-3 bg-muted/50 rounded-md">
                   <p className="text-sm font-medium text-foreground">
