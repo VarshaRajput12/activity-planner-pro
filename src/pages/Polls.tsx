@@ -34,10 +34,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const Polls: React.FC = () => {
   const { user, isAdmin } = useAuth();
-  const { polls, isLoading, vote, getUserVote, createPoll, closePoll, changeVote } = usePolls();
+  const { polls, isLoading, vote, getUserVote, createPoll, closePoll, deletePoll, changeVote } = usePolls();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [newPoll, setNewPoll] = useState({
     title: '',
     description: '',
@@ -68,6 +69,28 @@ const Polls: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Helper function to truncate text to 50 words
+  const truncateToWords = (text: string, wordLimit: number = 10): { truncated: string; isTruncated: boolean } => {
+    const words = text.trim().split(/\s+/);
+    if (words.length <= wordLimit) {
+      return { truncated: text, isTruncated: false };
+    }
+    return { truncated: words.slice(0, wordLimit).join(' ') + '...', isTruncated: true };
+  };
+
+  // Helper function to toggle description expansion
+  const toggleDescriptionExpansion = (pollId: string) => {
+    setExpandedDescriptions((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(pollId)) {
+        newSet.delete(pollId);
+      } else {
+        newSet.add(pollId);
+      }
+      return newSet;
+    });
+  };
 
   // Helper function to format time remaining
   const getTimeRemaining = (expiresAt: string) => {
@@ -153,7 +176,7 @@ const Polls: React.FC = () => {
     }));
   };
 
-  const renderPollCard = (poll: typeof polls[0], isActive: boolean) => {
+  const renderPollCard = (poll: typeof polls[0], isActive: boolean, adminUser: boolean = false) => {
     const userVote = getUserVote(poll.id);
     const totalVotes = poll.vote_count || 0;
     // Check expiry using real-time countdown - poll is expired if current time is past expiry
@@ -161,6 +184,8 @@ const Polls: React.FC = () => {
     const isExpired = currentTime >= expiryTime;
     // Check if poll is truly active (status is active AND not expired)
     const isPollActive = poll.status === 'active' && !isExpired;
+
+    const showFieldLabels = true;
 
     return (
       <Card key={poll.id} className="card-elevated animate-slide-up">
@@ -185,22 +210,63 @@ const Polls: React.FC = () => {
                   </Badge>
                 )}
               </div>
-              <CardTitle className="text-xl">{poll.title}</CardTitle>
-              {poll.description && (
-                <p className="text-muted-foreground mt-2">{poll.description}</p>
-              )}
-              {(poll.event_date || poll.event_time) && (
-                <div className="mt-3 p-3 bg-muted/50 rounded-md">
-                  <p className="text-sm font-medium text-foreground">
-                    📅 Event Schedule:
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {poll.event_date && format(new Date(poll.event_date), 'MMM dd, yyyy')}
-                    {poll.event_date && poll.event_time && ' at '}
-                    {poll.event_time && format(new Date(`2000-01-01T${poll.event_time}`), 'h:mm a')}
-                  </p>
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Activity Name */}
+                  <div className="space-y-1">
+                    {showFieldLabels && (
+                      <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Activity Name</p>
+                    )}
+                    <CardTitle className="text-xl font-medium text-foreground">{poll.title}</CardTitle>
+                  </div>
+
+                  {/* Event Schedule */}
+                  {(poll.event_date || poll.event_time) && (
+                    <div className="space-y-1">
+                      {showFieldLabels && (
+                        <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Event Schedule</p>
+                      )}
+                      <p className="text-sm text-muted-foreground mt-1">
+                        📅 {poll.event_date && format(new Date(poll.event_date), 'MMM dd, yyyy')}
+                        {poll.event_date && poll.event_time && ' at '}
+                        {poll.event_time && format(new Date(`2000-01-01T${poll.event_time}`), 'h:mm a')}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Description */}
+                  {poll.description && (
+                    <div className="space-y-1">
+                      {showFieldLabels && (
+                        <p id="description" className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">Description</p>
+                      )}
+                      <div>
+                        {(() => {
+                          const { truncated, isTruncated } = truncateToWords(poll.description, 10);
+                          const isExpanded = expandedDescriptions.has(poll.id);
+                          return (
+                            <>
+                              <p className="text-sm text-muted-foreground leading-relaxed">
+                                {isExpanded ? poll.description : truncated}
+                              </p>
+                              {isTruncated && (
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="mt-2 h-auto p-0 text-accent hover:text-accent/80"
+                                  onClick={() => toggleDescriptionExpansion(poll.id)}
+                                >
+                                  {isExpanded ? 'Show Less' : 'Show More'}
+                                </Button>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
             {/* {!isActive && isAdmin && (
               <Button variant="accent" size="sm" className="ml-4">
@@ -208,6 +274,16 @@ const Polls: React.FC = () => {
                 Add Activity
               </Button>
             )} */}
+            {!isPollActive && adminUser && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-4 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => deletePoll(poll.id)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
           </div>
 
           <div className="flex items-center gap-4 text-sm text-muted-foreground mt-4">
@@ -504,7 +580,7 @@ const Polls: React.FC = () => {
                   </CardContent>
                 </Card>
               ) : (
-                activePolls.map((poll) => renderPollCard(poll, true))
+                activePolls.map((poll) => renderPollCard(poll, true, isAdmin))
               )}
             </TabsContent>
 
@@ -525,7 +601,7 @@ const Polls: React.FC = () => {
                   </CardContent>
                 </Card>
               ) : (
-                closedPolls.map((poll) => renderPollCard(poll, false))
+                closedPolls.map((poll) => renderPollCard(poll, false, isAdmin))
               )}
             </TabsContent>
           </Tabs>

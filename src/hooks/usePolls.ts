@@ -236,6 +236,31 @@ export const usePolls = () => {
     }
   };
 
+  const deletePoll = async (pollId: string) => {
+    try {
+      const { error } = await supabase
+        .from('activity_polls')
+        .delete()
+        .eq('id', pollId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Poll deleted',
+        description: 'The poll has been deleted successfully',
+      });
+
+      await fetchPolls();
+    } catch (error) {
+      console.error('Error deleting poll:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete poll',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getUserVote = useCallback(
     (pollId: string): string | null => {
       if (!user) return null;
@@ -306,6 +331,7 @@ export const usePolls = () => {
     vote,
     changeVote,
     closePoll,
+    deletePoll,
     getUserVote,
     refetch: fetchPolls,
   };

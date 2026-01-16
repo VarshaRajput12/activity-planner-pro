@@ -166,17 +166,10 @@ const Sidebar: React.FC = () => {
               {isAdmin ? 'Administrator' : 'Member'}
             </p>
           </div>
-        </div>
-        {/* Active / Inactive toggle */}
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="text-xs text-sidebar-foreground/60">Status</p>
-            <p className="text-sm font-medium">{isActive ? 'Active' : 'Inactive'}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className={cn('text-xs', !isActive ? 'text-sidebar-foreground font-medium' : 'text-sidebar-foreground/60')}>Inactive</span>
+          {/* Active / Inactive toggle */}
+          <div className="flex flex-col items-center gap-1">
             <Switch checked={!!isActive} onCheckedChange={handleToggle} disabled={isUpdating} />
-            <span className={cn('text-xs', isActive ? 'text-sidebar-foreground font-medium' : 'text-sidebar-foreground/60')}>Active</span>
+            <p className="text-xs font-medium text-sidebar-foreground">{isActive ? 'Active' : 'Inactive'}</p>
           </div>
         </div>
         <Button
