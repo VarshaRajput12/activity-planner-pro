@@ -26,7 +26,7 @@ export const usePolls = () => {
 
       if (pollsError) throw pollsError;
 
-      const enrichedPolls: ActivityPoll[] = (pollsData || []).map((poll) => {
+      const enrichedPolls: ActivityPoll[] = (pollsData || []).map((poll: any) => {
         const options = (poll.options || []).map((option: PollOption & { votes: VoteBasic[] }) => ({
           ...option,
           vote_count: option.votes?.length || 0,
@@ -39,9 +39,11 @@ export const usePolls = () => {
 
         return {
           ...poll,
+          event_date: poll.event_date ?? null,
+          event_time: poll.event_time ?? null,
           options,
           vote_count: totalVotes,
-        };
+        } as ActivityPoll;
       });
 
       setPolls(enrichedPolls);
@@ -61,7 +63,9 @@ export const usePolls = () => {
     title: string,
     description: string,
     expiresAt: Date,
-    options: { title: string; description?: string }[]
+    options: { title: string; description?: string }[],
+    eventDate?: string | null,
+    eventTime?: string | null
   ) => {
     if (!user) return null;
 
@@ -73,6 +77,8 @@ export const usePolls = () => {
           description,
           expires_at: expiresAt.toISOString(),
           created_by: user.id,
+          event_date: eventDate || null,
+          event_time: eventTime || null,
         })
         .select()
         .single();
