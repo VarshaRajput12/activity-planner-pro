@@ -6,7 +6,7 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   // Set base to repository name for GitHub Pages
-  base: process.env.GITHUB_ACTIONS ? '/activity-planner-pro/' : '/',
+  base: '/activity-planner-pro/',
   server: {
     host: "::",
     port: 8080,
