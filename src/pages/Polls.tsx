@@ -34,7 +34,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const Polls: React.FC = () => {
   const { user, isAdmin } = useAuth();
-  const { polls, isLoading, vote, getUserVote, createPoll, closePoll, changeVote } = usePolls();
+  const { polls, isLoading, vote, getUserVote, createPoll, closePoll, deletePoll, changeVote } = usePolls();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -176,7 +176,7 @@ const Polls: React.FC = () => {
     }));
   };
 
-  const renderPollCard = (poll: typeof polls[0], isActive: boolean) => {
+  const renderPollCard = (poll: typeof polls[0], isActive: boolean, adminUser: boolean = false) => {
     const userVote = getUserVote(poll.id);
     const totalVotes = poll.vote_count || 0;
     // Check expiry using real-time countdown - poll is expired if current time is past expiry
@@ -274,6 +274,16 @@ const Polls: React.FC = () => {
                 Add Activity
               </Button>
             )} */}
+            {!isPollActive && adminUser && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-4 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => deletePoll(poll.id)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
           </div>
 
           <div className="flex items-center gap-4 text-sm text-muted-foreground mt-4">
@@ -570,7 +580,7 @@ const Polls: React.FC = () => {
                   </CardContent>
                 </Card>
               ) : (
-                activePolls.map((poll) => renderPollCard(poll, true))
+                activePolls.map((poll) => renderPollCard(poll, true, isAdmin))
               )}
             </TabsContent>
 
@@ -591,7 +601,7 @@ const Polls: React.FC = () => {
                   </CardContent>
                 </Card>
               ) : (
-                closedPolls.map((poll) => renderPollCard(poll, false))
+                closedPolls.map((poll) => renderPollCard(poll, false, isAdmin))
               )}
             </TabsContent>
           </Tabs>
