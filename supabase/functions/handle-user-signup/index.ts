@@ -44,7 +44,11 @@ Deno.serve(async (req) => {
       
       console.log('Processing new user:', user.id);
 
-      // Create profile
+      // Role IDs (matching the migration)
+      const USER_ROLE_ID = '00000000-0000-0000-0000-000000000001';
+      const ADMIN_ROLE_ID = '00000000-0000-0000-0000-000000000002';
+
+      // Create profile with default User role
       const { data: profile, error: profileError } = await supabaseClient
         .from('profiles')
         .insert({
@@ -52,7 +56,7 @@ Deno.serve(async (req) => {
           email: user.email,
           full_name: user.raw_user_meta_data?.full_name || user.raw_user_meta_data?.name || null,
           avatar_url: user.raw_user_meta_data?.avatar_url || null,
-        //   role_id: 'ccd06645-33e0-4ab6-87cd-28e298ce1830',
+          role_id: USER_ROLE_ID, // Default to User role
         })
         .select()
         .single();
@@ -62,44 +66,7 @@ Deno.serve(async (req) => {
         throw profileError;
       }
 
-      console.log('Profile created:', profile);
-
-      // Assign default user role
-      const { error: userRoleError } = await supabaseClient
-        .from('user_roles')
-        .insert({
-          user_id: user.id,
-          role: 'user',
-        });
-
-      if (userRoleError) {
-        console.error('Error assigning user role:', userRoleError);
-        throw userRoleError;
-      }
-
-      console.log('User role assigned');
-
-      // Check if user should be an admin
-      const { data: adminData } = await supabaseClient
-        .from('admins')
-        .select('email')
-        .eq('email', user.email)
-        .single();
-
-      if (adminData) {
-        const { error: adminRoleError } = await supabaseClient
-          .from('user_roles')
-          .insert({
-            user_id: user.id,
-            role: 'admin',
-          });
-
-        if (adminRoleError && adminRoleError.code !== '23505') { // Ignore duplicate key error
-          console.error('Error assigning admin role:', adminRoleError);
-        } else {
-          console.log('Admin role assigned');
-        }
-      }
+      console.log('Profile created with User role:', profile);
 
       return new Response(
         JSON.stringify({
