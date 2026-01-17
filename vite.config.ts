@@ -5,8 +5,8 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode, command }) => ({
-  // Set base to repository name for GitHub Pages production builds only
-  base: command === 'build' ? '/activity-planner-pro/' : '/',
+  // Set base to root for Vercel deployment
+  base: '/',
   server: {
     host: "::",
     port: 8080,
