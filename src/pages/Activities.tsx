@@ -28,23 +28,66 @@ import {
   Loader2,
   AlertCircle,
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, isToday, isBefore, isAfter, startOfDay } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Activity } from '@/types/database';
 
 const Activities: React.FC = () => {
-  const { user } = useAuth();
-  const { activities, isLoading, respondToActivity, getUserResponse } = useActivities();
+  const { user, isAdmin } = useAuth();
+  const { activities, isLoading, respondToActivity, getUserResponse, updateActivity } = useActivities();
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [respondingActivityId, setRespondingActivityId] = useState<string | null>(null);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [completingActivityId, setCompletingActivityId] = useState<string | null>(null);
 
-  const upcomingActivities = activities.filter((a) => a.status === 'upcoming');
-  const ongoingActivities = activities.filter((a) => a.status === 'ongoing');
-  const pastActivities = activities.filter(
-    (a) => a.status === 'completed' || a.status === 'cancelled'
-  );
+  // Helper function to check if the event time has passed
+  const hasEventTimePassed = (activity: Activity): boolean => {
+    if (!activity.scheduled_at) return false;
+    const scheduledDateTime = new Date(activity.scheduled_at);
+    const now = new Date();
+    return scheduledDateTime < now;
+  };
+
+  // Helper function to determine if an activity should be shown as ongoing
+  const isActivityOngoing = (activity: Activity): boolean => {
+    if (!activity.scheduled_at) return false;
+    const scheduledDate = new Date(activity.scheduled_at);
+    const today = new Date();
+    const scheduledDateStart = startOfDay(scheduledDate);
+    const todayStart = startOfDay(today);
+    
+    // Activity is ongoing if:
+    // 1. Status is already ongoing, OR
+    // 2. Scheduled time has hit (scheduled_at <= now) AND it's still the same day as scheduled
+    return activity.status === 'ongoing' ||
+           (hasEventTimePassed(activity) && (isToday(scheduledDate) || isBefore(scheduledDateStart, todayStart)));
+  };
+
+  // Helper function to check if the event time has hit (scheduled time is now or in the past)
+  const hasEventTimeHit = (activity: Activity): boolean => {
+    if (!activity.scheduled_at) return false;
+    const scheduledDateTime = new Date(activity.scheduled_at);
+    const now = new Date();
+    return scheduledDateTime <= now;
+  };
+
+  const upcomingActivities = activities.filter((a) => {
+    if (a.status === 'completed' || a.status === 'cancelled') return false;
+    // Show in upcoming if scheduled time hasn't been hit yet
+    return !hasEventTimeHit(a);
+  });
+  
+  const ongoingActivities = activities.filter((a) => {
+    if (a.status === 'completed' || a.status === 'cancelled') return false;
+    // Show in ongoing if event time has hit
+    return hasEventTimeHit(a) && isActivityOngoing(a);
+  });
+  
+  const pastActivities = activities.filter((a) => {
+    // Include completed/cancelled activities
+    return a.status === 'completed' || a.status === 'cancelled';
+  });
 
   const handleAccept = async (activity: Activity) => {
     setRespondingActivityId(activity.id);
@@ -61,6 +104,12 @@ const Activities: React.FC = () => {
     setShowRejectDialog(false);
     setRejectionReason('');
     setSelectedActivity(null);
+  };
+
+  const handleCompleteActivity = async (activity: Activity) => {
+    setCompletingActivityId(activity.id);
+    await updateActivity(activity.id, { status: 'completed' });
+    setCompletingActivityId(null);
   };
 
   const openRejectDialog = (activity: Activity) => {
@@ -218,6 +267,25 @@ const Activities: React.FC = () => {
                   Change to Reject
                 </Button>
               )}
+            </div>
+          )}
+
+          {/* Admin button to mark ongoing activity as complete */}
+          {isAdmin && isActivityOngoing(activity) && hasEventTimeHit(activity) && (
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                className="w-full border-success/30 text-success hover:bg-success/10"
+                onClick={() => handleCompleteActivity(activity)}
+                disabled={completingActivityId === activity.id}
+              >
+                {completingActivityId === activity.id ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                )}
+                Mark as Complete
+              </Button>
             </div>
           )}
 

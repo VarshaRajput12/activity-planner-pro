@@ -78,11 +78,45 @@ const AdminDashboard: React.FC = () => {
     const option = poll.options?.find((o) => o.id === optionId);
     if (!option) return;
 
-    const result = await createActivity(
-      option.title,
+    // Build scheduled_at from poll's event_date and event_time
+    let scheduledAt: Date | null = null;
+    if (poll.event_date) {
+      try {
+        // event_date is typically in format: "2026-01-17" or "2026-01-17T00:00:00+00"
+        // event_time is typically in format: "19:15:00"
+        let dateTimeStr: string;
+        
+        // Extract just the date part if it has time included
+        const datePart = poll.event_date.split('T')[0];
+        const timePart = poll.event_time ? poll.event_time.split('+')[0] : '00:00:00';
+        
+        dateTimeStr = `${datePart}T${timePart}`;
+        scheduledAt = new Date(dateTimeStr);
+        
+        // Validate the date is valid
+        if (isNaN(scheduledAt.getTime())) {
+          scheduledAt = null;
+        }
+      } catch (error) {
+        console.error('Error parsing event date/time:', error);
+        scheduledAt = null;
+      }
+    }
+
+    // Build description combining poll and option details
+    const description = [
+      poll.description,
       option.description,
+      `Winning option: ${option.title}`
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+    const result = await createActivity(
+      poll.title || option.title,
+      description || null,
       null,
-      null,
+      scheduledAt,
       poll.id,
       optionId
     );
