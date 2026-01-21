@@ -143,6 +143,21 @@ Deno.serve(async (req) => {
           throw new Error('Only admins can mark leaderboard');
         }
 
+        // Verify activity is completed
+        const { data: activity, error: activityError } = await supabaseClient
+          .from('activities')
+          .select('status, title')
+          .eq('id', activity_id)
+          .single();
+
+        if (activityError || !activity) {
+          throw new Error('Activity not found');
+        }
+
+        if (activity.status !== 'completed') {
+          throw new Error('Leaderboard can only be marked for completed activities');
+        }
+
         const { data: entry, error } = await supabaseClient
           .from('leaderboard_entries')
           .upsert({
@@ -157,12 +172,6 @@ Deno.serve(async (req) => {
         if (error) throw error;
 
         // Notify the user who got ranked
-        const { data: activity } = await supabaseClient
-          .from('activities')
-          .select('title')
-          .eq('id', activity_id)
-          .single();
-
         if (activity) {
           await supabaseClient
             .from('notifications')

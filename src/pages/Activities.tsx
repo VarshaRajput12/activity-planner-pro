@@ -271,7 +271,7 @@ const Activities: React.FC = () => {
           )}
 
           {/* Admin button to mark ongoing activity as complete */}
-          {isAdmin && isActivityOngoing(activity) && hasEventTimeHit(activity) && (
+          {isAdmin && activity.status === 'ongoing' && hasEventTimeHit(activity) && (
             <div className="mt-4">
               <Button
                 variant="outline"
