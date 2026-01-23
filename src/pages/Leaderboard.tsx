@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,9 +41,14 @@ const getRankBadgeClass = (rank: number | null) => {
   return '';
 };
 
+interface OutletContext {
+  setSidebarOpen: (open: boolean) => void;
+}
+
 const Leaderboard: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const { leaderboardData, isLoading, setRank } = useLeaderboard();
+  const { setSidebarOpen } = useOutletContext<OutletContext>();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterActivity, setFilterActivity] = useState<string>('all');
 
@@ -72,9 +78,10 @@ const Leaderboard: React.FC = () => {
       <Header
         title="Leaderboard"
         subtitle="Top performers across all activities"
+        onMenuClick={() => setSidebarOpen(true)}
       />
 
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
           <div className="relative flex-1">

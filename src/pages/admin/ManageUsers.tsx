@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useOutletContext } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,9 +69,14 @@ interface ProfileWithRole extends Profile {
   role_id: string;
 }
 
+interface OutletContext {
+  setSidebarOpen: (open: boolean) => void;
+}
+
 const ManageUsers: React.FC = () => {
   const { isAdmin, user } = useAuth();
   const { toast } = useToast();
+  const { setSidebarOpen } = useOutletContext<OutletContext>();
   const [users, setUsers] = useState<ProfileWithRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -301,9 +306,13 @@ const ManageUsers: React.FC = () => {
 
   return (
     <div className="min-h-screen">
-      <Header title="Manage Users" subtitle="View and manage user roles" />
+      <Header 
+        title="Manage Users" 
+        subtitle="View and manage user roles" 
+        onMenuClick={() => setSidebarOpen(true)}
+      />
 
-      <div className="p-8 space-y-8 animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-fade-in">
         {/* Admin Users */}
         <Card className="card-elevated">
           <CardHeader>

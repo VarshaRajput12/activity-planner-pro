@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { usePolls } from '@/hooks/usePolls';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,9 +33,14 @@ import {
 import { format, formatDistanceToNow, isPast, addDays } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 
+interface OutletContext {
+  setSidebarOpen: (open: boolean) => void;
+}
+
 const Polls: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const { polls, isLoading, vote, getUserVote, createPoll, closePoll, deletePoll, changeVote } = usePolls();
+  const { setSidebarOpen } = useOutletContext<OutletContext>();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -363,9 +369,13 @@ const Polls: React.FC = () => {
 
   return (
     <div className="min-h-screen">
-      <Header title="Activity Polls" subtitle="Vote on upcoming activities" />
+      <Header 
+        title="Activity Polls" 
+        subtitle="Vote on upcoming activities" 
+        onMenuClick={() => setSidebarOpen(true)}
+      />
 
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="flex items-center justify-between mb-8">
           <Tabs defaultValue="active" className="w-full">
             <div className="flex items-center justify-between mb-6">
