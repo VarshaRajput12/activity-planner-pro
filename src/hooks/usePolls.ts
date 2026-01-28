@@ -5,7 +5,7 @@ import { ActivityPoll, PollOption, VoteBasic } from '@/types/database';
 import { useToast } from '@/hooks/use-toast';
 
 export const usePolls = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const [polls, setPolls] = useState<ActivityPoll[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,6 +47,78 @@ export const usePolls = () => {
       });
 
       setPolls(enrichedPolls);
+
+      if (isAdmin && user) {
+        for (const poll of enrichedPolls) {
+          try {
+            if (poll.status !== 'active') continue;
+
+            const totalVotes = poll.vote_count || 0;
+            const yesOption = (poll.options || []).find(
+              (o) => o.title.toLowerCase() === 'yes'
+            );
+            const yesVotes = yesOption?.vote_count || 0;
+            const yesPct = totalVotes > 0 ? (yesVotes / totalVotes) * 100 : 0;
+            const isExpired = new Date(poll.expires_at).getTime() <= Date.now();
+
+            const { data: existingActivity } = await supabase
+              .from('activities')
+              .select('id')
+              .eq('poll_id', poll.id)
+              .maybeSingle();
+
+            if (existingActivity) continue;
+
+            const winningOption = yesOption;
+
+            if (!winningOption) continue;
+            if (!(isExpired && yesPct >= 50)) continue;
+
+            let scheduledAtIso: string | null = null;
+            try {
+              if (poll.event_date) {
+                const datePart = poll.event_date.split('T')[0];
+                let timePart = poll.event_time ? poll.event_time.split('+')[0] : '00:00:00';
+                if (timePart && timePart.length === 5) {
+                  timePart = `${timePart}:00`;
+                }
+                const dateTimeStr = `${datePart}T${timePart}`;
+                const scheduledDate = new Date(dateTimeStr);
+                if (!isNaN(scheduledDate.getTime())) {
+                  scheduledAtIso = scheduledDate.toISOString();
+                }
+              }
+            } catch {}
+
+            const descriptionParts = [
+              poll.description || null,
+              `Winning option: ${winningOption.title}`,
+              winningOption.description || null,
+            ].filter(Boolean);
+
+            const { error: createError } = await supabase
+              .from('activities')
+              .insert({
+                title: poll.title,
+                description: descriptionParts.length ? descriptionParts.join('\n\n') : null,
+                location: null,
+                scheduled_at: scheduledAtIso,
+                created_by: user.id,
+                poll_id: poll.id,
+                poll_option_id: winningOption.id,
+              });
+
+            if (!createError) {
+              await supabase
+                .from('activity_polls')
+                .update({ status: 'resolved' })
+                .eq('id', poll.id);
+            }
+          } catch (e) {
+            console.error('Auto-create activity from poll failed', e);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error fetching polls:', error);
       toast({
@@ -251,6 +323,7 @@ export const usePolls = () => {
       });
 
       await fetchPolls();
+      return true;
     } catch (error) {
       console.error('Error deleting poll:', error);
       toast({
@@ -258,6 +331,7 @@ export const usePolls = () => {
         description: 'Failed to delete poll',
         variant: 'destructive',
       });
+      return false;
     }
   };
 
@@ -299,24 +373,9 @@ export const usePolls = () => {
       )
       .subscribe();
 
-    // Check for expired polls every 30 seconds
-    const checkExpiredPolls = async () => {
-      try {
-        // Call the process_expired_polls function
-        const { error } = await supabase.rpc('process_expired_polls');
-        if (error) {
-          console.error('Error processing expired polls:', error);
-        }
-      } catch (error) {
-        console.error('Error checking expired polls:', error);
-      }
-    };
-
-    // Initial check
-    checkExpiredPolls();
-
-    // Set up interval to check every 30 seconds
-    const pollCheckInterval = setInterval(checkExpiredPolls, 30000);
+    // Client-side fetch already auto-creates on expiry for admins when Yes ≥ 50%
+    // No periodic RPC call needed here
+    const pollCheckInterval = setInterval(() => fetchPolls(), 30000);
 
     return () => {
       supabase.removeChannel(pollsChannel);

@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -28,23 +27,72 @@ import {
   Loader2,
   AlertCircle,
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, isToday, isBefore, isAfter, startOfDay } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Activity } from '@/types/database';
 
 const Activities: React.FC = () => {
-  const { user } = useAuth();
-  const { activities, isLoading, respondToActivity, getUserResponse } = useActivities();
+  const { user, isAdmin } = useAuth();
+  const { activities, isLoading, respondToActivity, getUserResponse, updateActivity } = useActivities();
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [respondingActivityId, setRespondingActivityId] = useState<string | null>(null);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [completingActivityId, setCompletingActivityId] = useState<string | null>(null);
 
-  const upcomingActivities = activities.filter((a) => a.status === 'upcoming');
-  const ongoingActivities = activities.filter((a) => a.status === 'ongoing');
-  const pastActivities = activities.filter(
-    (a) => a.status === 'completed' || a.status === 'cancelled'
-  );
+  // Helper function to check if the event time has passed
+  const hasEventTimePassed = (activity: Activity): boolean => {
+    if (!activity.scheduled_at) return false;
+    const scheduledDateTime = new Date(activity.scheduled_at);
+    const now = new Date();
+    return scheduledDateTime < now;
+  };
+
+  // Helper function to determine if an activity should be shown as ongoing
+  const isActivityOngoing = (activity: Activity): boolean => {
+    if (!activity.scheduled_at) return false;
+    const scheduledDate = new Date(activity.scheduled_at);
+    const today = new Date();
+    const scheduledDateStart = startOfDay(scheduledDate);
+    const todayStart = startOfDay(today);
+    
+    // Activity is ongoing if:
+    // 1. Status is already ongoing, OR
+    // 2. Scheduled time has hit (scheduled_at <= now) AND it's still the same day as scheduled
+    return activity.status === 'ongoing' ||
+           (hasEventTimePassed(activity) && (isToday(scheduledDate) || isBefore(scheduledDateStart, todayStart)));
+  };
+
+  // Helper function to check if the event time has hit (scheduled time is now or in the past)
+  const hasEventTimeHit = (activity: Activity): boolean => {
+    if (!activity.scheduled_at) return false;
+    const scheduledDateTime = new Date(activity.scheduled_at);
+    const now = new Date();
+    return scheduledDateTime <= now;
+  };
+
+  const upcomingActivities = activities.filter((a) => {
+    if (a.status === 'completed' || a.status === 'cancelled') return false;
+    // Show in upcoming if scheduled time hasn't been hit yet
+    return !hasEventTimeHit(a);
+  });
+  
+  const ongoingActivities = activities.filter((a) => {
+    if (a.status === 'completed' || a.status === 'cancelled') return false;
+    // Show in ongoing if event time has hit
+    return hasEventTimeHit(a) && isActivityOngoing(a);
+  });
+  
+  const pastActivities = activities.filter((a) => {
+    // Include completed/cancelled activities
+    return a.status === 'completed' || a.status === 'cancelled';
+  });
+
+  // Derive display status for UI to avoid mismatches when DB status lags
+  const getDisplayStatus = (activity: Activity): 'upcoming' | 'ongoing' | 'completed' | 'cancelled' => {
+    if (activity.status === 'completed' || activity.status === 'cancelled') return activity.status;
+    return hasEventTimeHit(activity) && isActivityOngoing(activity) ? 'ongoing' : 'upcoming';
+  };
 
   const handleAccept = async (activity: Activity) => {
     setRespondingActivityId(activity.id);
@@ -61,6 +109,12 @@ const Activities: React.FC = () => {
     setShowRejectDialog(false);
     setRejectionReason('');
     setSelectedActivity(null);
+  };
+
+  const handleCompleteActivity = async (activity: Activity) => {
+    setCompletingActivityId(activity.id);
+    await updateActivity(activity.id, { status: 'completed' });
+    setCompletingActivityId(null);
   };
 
   const openRejectDialog = (activity: Activity) => {
@@ -99,6 +153,7 @@ const Activities: React.FC = () => {
   const renderActivityCard = (activity: Activity) => {
     const response = getUserResponse(activity.id);
     const acceptedCount = activity.participation?.filter((p) => p.status === 'accepted').length || 0;
+    const displayStatus = getDisplayStatus(activity);
 
     return (
       <Card key={activity.id} className="card-elevated animate-slide-up">
@@ -109,16 +164,16 @@ const Activities: React.FC = () => {
                 <Badge
                   variant="outline"
                   className={
-                    activity.status === 'upcoming'
+                    displayStatus === 'upcoming'
                       ? 'bg-success/10 text-success border-success/20'
-                      : activity.status === 'ongoing'
+                      : displayStatus === 'ongoing'
                       ? 'bg-warning/10 text-warning border-warning/20'
-                      : activity.status === 'completed'
+                      : displayStatus === 'completed'
                       ? 'bg-muted text-muted-foreground'
                       : 'bg-destructive/10 text-destructive border-destructive/20'
                   }
                 >
-                  {activity.status}
+                  {displayStatus}
                 </Badge>
                 {getStatusBadge(activity)}
               </div>
@@ -159,7 +214,7 @@ const Activities: React.FC = () => {
             </div>
           )}
 
-          {activity.status === 'upcoming' && !response && (
+          {displayStatus === 'upcoming' && !response && (
             <div className="flex gap-3">
               <Button
                 variant="success"
@@ -188,7 +243,7 @@ const Activities: React.FC = () => {
             </div>
           )}
 
-          {activity.status === 'upcoming' && response && (
+          {displayStatus === 'upcoming' && response && (
             <div className="flex gap-3">
               {response.status === 'rejected' && (
                 <Button
@@ -210,7 +265,7 @@ const Activities: React.FC = () => {
               {response.status === 'accepted' && (
                 <Button
                   variant="outline"
-                  className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                  className="flex-1 border-destructive/30 text-destructive"
                   onClick={() => openRejectDialog(activity)}
                   disabled={respondingActivityId === activity.id}
                 >
@@ -221,27 +276,37 @@ const Activities: React.FC = () => {
             </div>
           )}
 
+          {/* Admin button to mark ongoing activity as complete */}
+          {isAdmin && displayStatus === 'ongoing' && hasEventTimeHit(activity) && (
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                className="w-full border-success/30 text-success"
+                onClick={() => handleCompleteActivity(activity)}
+                disabled={completingActivityId === activity.id}
+              >
+                {completingActivityId === activity.id ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                )}
+                Mark as Complete
+              </Button>
+            </div>
+          )}
+
           {/* Participants preview */}
           {acceptedCount > 0 && (
             <div className="mt-4 pt-4 border-t border-border">
               <p className="text-sm font-medium mb-2">Participants</p>
-              <div className="flex -space-x-2">
+              <div className="flex flex-wrap gap-2">
                 {activity.participation
                   ?.filter((p) => p.status === 'accepted')
-                  .slice(0, 8)
                   .map((p) => (
-                    <Avatar key={p.id} className="w-8 h-8 ring-2 ring-background">
-                      <AvatarImage src={p.user?.avatar_url || undefined} />
-                      <AvatarFallback className="text-xs">
-                        {p.user?.full_name?.[0] || '?'}
-                      </AvatarFallback>
-                    </Avatar>
+                    <Badge key={p.id} variant="outline" className="px-2 py-1">
+                      {p.user?.full_name || 'Unknown'}
+                    </Badge>
                   ))}
-                {acceptedCount > 8 && (
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium ring-2 ring-background">
-                    +{acceptedCount - 8}
-                  </div>
-                )}
               </div>
             </div>
           )}

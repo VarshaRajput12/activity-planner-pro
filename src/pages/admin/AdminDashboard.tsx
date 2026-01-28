@@ -30,6 +30,7 @@ import {
   Loader2,
   Trophy,
   ArrowRight,
+  Trash2,
 } from 'lucide-react';
 import { format, formatDistanceToNow, isPast } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -37,11 +38,14 @@ import { Progress } from '@/components/ui/progress';
 
 const AdminDashboard: React.FC = () => {
   const { isAdmin, user } = useAuth();
-  const { polls, closePoll } = usePolls();
-  const { activities, createActivity } = useActivities();
+  const { polls, closePoll, deletePoll } = usePolls();
+  const { activities, createActivity, deleteActivity } = useActivities();
 
   const [isCreateActivityOpen, setIsCreateActivityOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'poll' | 'activity'; id: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [newActivity, setNewActivity] = useState({
     title: '',
     description: '',
@@ -52,6 +56,27 @@ const AdminDashboard: React.FC = () => {
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+
+    setIsDeleting(true);
+    const success = 
+      deleteTarget.type === 'poll'
+        ? await deletePoll(deleteTarget.id)
+        : await deleteActivity(deleteTarget.id);
+
+    if (success) {
+      setDeleteConfirmOpen(false);
+      setDeleteTarget(null);
+    }
+    setIsDeleting(false);
+  };
+
+  const openDeleteConfirm = (type: 'poll' | 'activity', id: string) => {
+    setDeleteTarget({ type, id });
+    setDeleteConfirmOpen(true);
+  };
 
   const activePolls = polls.filter((p) => p.status === 'active' && !isPast(new Date(p.expires_at)));
   const resolvedPolls = polls.filter((p) => p.status !== 'active' || isPast(new Date(p.expires_at)));
@@ -78,11 +103,45 @@ const AdminDashboard: React.FC = () => {
     const option = poll.options?.find((o) => o.id === optionId);
     if (!option) return;
 
-    const result = await createActivity(
-      option.title,
+    // Build scheduled_at from poll's event_date and event_time
+    let scheduledAt: Date | null = null;
+    if (poll.event_date) {
+      try {
+        // event_date is typically in format: "2026-01-17" or "2026-01-17T00:00:00+00"
+        // event_time is typically in format: "19:15:00"
+        let dateTimeStr: string;
+        
+        // Extract just the date part if it has time included
+        const datePart = poll.event_date.split('T')[0];
+        const timePart = poll.event_time ? poll.event_time.split('+')[0] : '00:00:00';
+        
+        dateTimeStr = `${datePart}T${timePart}`;
+        scheduledAt = new Date(dateTimeStr);
+        
+        // Validate the date is valid
+        if (isNaN(scheduledAt.getTime())) {
+          scheduledAt = null;
+        }
+      } catch (error) {
+        console.error('Error parsing event date/time:', error);
+        scheduledAt = null;
+      }
+    }
+
+    // Build description combining poll and option details
+    const description = [
+      poll.description,
       option.description,
+      `Winning option: ${option.title}`
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+    const result = await createActivity(
+      poll.title || option.title,
+      description || null,
       null,
-      null,
+      scheduledAt,
       poll.id,
       optionId
     );
@@ -256,6 +315,14 @@ const AdminDashboard: React.FC = () => {
                             <XCircle className="w-4 h-4 mr-1" />
                             Close Poll
                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDeleteConfirm('poll', poll.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                     );
@@ -282,7 +349,17 @@ const AdminDashboard: React.FC = () => {
                             {formatDistanceToNow(new Date(poll.expires_at), { addSuffix: true })}
                           </p>
                         </div>
-                        <Badge variant="outline">Closed</Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">Closed</Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDeleteConfirm('poll', poll.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -327,16 +404,26 @@ const AdminDashboard: React.FC = () => {
                             </p>
                           )}
                         </div>
-                        <Badge
-                          variant="outline"
-                          className={
-                            activity.status === 'upcoming'
-                              ? 'bg-success/10 text-success border-success/20'
-                              : 'bg-muted text-muted-foreground'
-                          }
-                        >
-                          {activity.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="outline"
+                            className={
+                              activity.status === 'upcoming'
+                                ? 'bg-success/10 text-success border-success/20'
+                                : 'bg-muted text-muted-foreground'
+                            }
+                          >
+                            {activity.status}
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDeleteConfirm('activity', activity.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                       <div className="flex items-center gap-4 text-sm">
                         <span className="flex items-center gap-1 text-success">
@@ -428,6 +515,32 @@ const AdminDashboard: React.FC = () => {
             >
               {isCreating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create Activity
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {deleteTarget?.type === 'poll' ? 'Poll' : 'Activity'}?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. The {deleteTarget?.type === 'poll' ? 'poll' : 'activity'} and all its associated data will be permanently deleted.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
