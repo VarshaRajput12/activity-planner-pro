@@ -323,6 +323,7 @@ export const usePolls = () => {
       });
 
       await fetchPolls();
+      return true;
     } catch (error) {
       console.error('Error deleting poll:', error);
       toast({
@@ -330,6 +331,7 @@ export const usePolls = () => {
         description: 'Failed to delete poll',
         variant: 'destructive',
       });
+      return false;
     }
   };
 
