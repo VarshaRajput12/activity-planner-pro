@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -282,7 +281,7 @@ const Activities: React.FC = () => {
             <div className="mt-4">
               <Button
                 variant="outline"
-                className="w-full border-success/30 text-success hover:bg-success/10"
+                className="w-full border-success/30 text-success"
                 onClick={() => handleCompleteActivity(activity)}
                 disabled={completingActivityId === activity.id}
               >
@@ -300,23 +299,14 @@ const Activities: React.FC = () => {
           {acceptedCount > 0 && (
             <div className="mt-4 pt-4 border-t border-border">
               <p className="text-sm font-medium mb-2">Participants</p>
-              <div className="flex -space-x-2">
+              <div className="flex flex-wrap gap-2">
                 {activity.participation
                   ?.filter((p) => p.status === 'accepted')
-                  .slice(0, 8)
                   .map((p) => (
-                    <Avatar key={p.id} className="w-8 h-8 ring-2 ring-background">
-                      <AvatarImage src={p.user?.avatar_url || undefined} />
-                      <AvatarFallback className="text-xs">
-                        {p.user?.full_name?.[0] || '?'}
-                      </AvatarFallback>
-                    </Avatar>
+                    <Badge key={p.id} variant="outline" className="px-2 py-1">
+                      {p.user?.full_name || 'Unknown'}
+                    </Badge>
                   ))}
-                {acceptedCount > 8 && (
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium ring-2 ring-background">
-                    +{acceptedCount - 8}
-                  </div>
-                )}
               </div>
             </div>
           )}
