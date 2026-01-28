@@ -265,7 +265,7 @@ const Activities: React.FC = () => {
               {response.status === 'accepted' && (
                 <Button
                   variant="outline"
-                  className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                  className="flex-1 border-destructive/30 text-destructive"
                   onClick={() => openRejectDialog(activity)}
                   disabled={respondingActivityId === activity.id}
                 >
