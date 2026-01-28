@@ -89,6 +89,12 @@ const Activities: React.FC = () => {
     return a.status === 'completed' || a.status === 'cancelled';
   });
 
+  // Derive display status for UI to avoid mismatches when DB status lags
+  const getDisplayStatus = (activity: Activity): 'upcoming' | 'ongoing' | 'completed' | 'cancelled' => {
+    if (activity.status === 'completed' || activity.status === 'cancelled') return activity.status;
+    return hasEventTimeHit(activity) && isActivityOngoing(activity) ? 'ongoing' : 'upcoming';
+  };
+
   const handleAccept = async (activity: Activity) => {
     setRespondingActivityId(activity.id);
     await respondToActivity(activity.id, 'accepted');
@@ -148,6 +154,7 @@ const Activities: React.FC = () => {
   const renderActivityCard = (activity: Activity) => {
     const response = getUserResponse(activity.id);
     const acceptedCount = activity.participation?.filter((p) => p.status === 'accepted').length || 0;
+    const displayStatus = getDisplayStatus(activity);
 
     return (
       <Card key={activity.id} className="card-elevated animate-slide-up">
@@ -158,16 +165,16 @@ const Activities: React.FC = () => {
                 <Badge
                   variant="outline"
                   className={
-                    activity.status === 'upcoming'
+                    displayStatus === 'upcoming'
                       ? 'bg-success/10 text-success border-success/20'
-                      : activity.status === 'ongoing'
+                      : displayStatus === 'ongoing'
                       ? 'bg-warning/10 text-warning border-warning/20'
-                      : activity.status === 'completed'
+                      : displayStatus === 'completed'
                       ? 'bg-muted text-muted-foreground'
                       : 'bg-destructive/10 text-destructive border-destructive/20'
                   }
                 >
-                  {activity.status}
+                  {displayStatus}
                 </Badge>
                 {getStatusBadge(activity)}
               </div>
@@ -208,7 +215,7 @@ const Activities: React.FC = () => {
             </div>
           )}
 
-          {activity.status === 'upcoming' && !response && (
+          {displayStatus === 'upcoming' && !response && (
             <div className="flex gap-3">
               <Button
                 variant="success"
@@ -237,7 +244,7 @@ const Activities: React.FC = () => {
             </div>
           )}
 
-          {activity.status === 'upcoming' && response && (
+          {displayStatus === 'upcoming' && response && (
             <div className="flex gap-3">
               {response.status === 'rejected' && (
                 <Button
@@ -271,7 +278,7 @@ const Activities: React.FC = () => {
           )}
 
           {/* Admin button to mark ongoing activity as complete */}
-          {isAdmin && activity.status === 'ongoing' && hasEventTimeHit(activity) && (
+          {isAdmin && displayStatus === 'ongoing' && hasEventTimeHit(activity) && (
             <div className="mt-4">
               <Button
                 variant="outline"
