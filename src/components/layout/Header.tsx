@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,40 +14,55 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
+import { useMobile } from '@/hooks/use-mobile-responsive';
 
 interface HeaderProps {
   title: string;
   subtitle?: string;
+  onMenuClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
+const Header: React.FC<HeaderProps> = ({ title, subtitle, onMenuClick }) => {
   const { isAdmin } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const isMobile = useMobile();
 
   return (
-    <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border px-8 py-4">
+    <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border px-4 sm:px-6 lg:px-8 py-4">
       <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-            {isAdmin && (
-              <Badge variant="outline" className="bg-accent/10 text-accent border-accent/20">
-                Admin
-              </Badge>
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onMenuClick}
+              className="lg:hidden flex-shrink-0"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">{title}</h1>
+              {isAdmin && (
+                <Badge variant="outline" className="bg-accent/10 text-accent border-accent/20 hidden sm:inline-flex">
+                  Admin
+                </Badge>
+              )}
+            </div>
+            {subtitle && (
+              <p className="text-sm text-muted-foreground mt-1 truncate">{subtitle}</p>
             )}
           </div>
-          {subtitle && (
-            <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
-          )}
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative hidden md:block">
+        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+          <div className="relative hidden sm:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Search..."
-              className="w-64 pl-10 bg-muted/50 border-0 focus-visible:bg-background focus-visible:ring-1"
+              className="w-40 sm:w-64 pl-10 bg-muted/50 border-0 focus-visible:bg-background focus-visible:ring-1"
             />
           </div>
 
@@ -62,7 +77,7 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuContent align="end" className="w-80 sm:w-96">
               <DropdownMenuLabel className="flex items-center justify-between">
                 <span>Notifications</span>
                 {unreadCount > 0 && (

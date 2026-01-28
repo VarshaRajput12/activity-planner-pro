@@ -1,4 +1,5 @@
 import React from 'react';
+import { useOutletContext } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePolls } from '@/hooks/usePolls';
@@ -22,10 +23,15 @@ import { Link } from 'react-router-dom';
 import { format, formatDistanceToNow, isPast } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 
+interface OutletContext {
+  setSidebarOpen: (open: boolean) => void;
+}
+
 const Dashboard: React.FC = () => {
   const { profile, isAdmin } = useAuth();
   const { polls, isLoading: pollsLoading } = usePolls();
   const { activities, isLoading: activitiesLoading, getUserResponse } = useActivities();
+  const { setSidebarOpen } = useOutletContext<OutletContext>();
 
   const activePolls = polls.filter((p) => p.status === 'active' && !isPast(new Date(p.expires_at)));
   const upcomingActivities = activities.filter((a) => a.status === 'upcoming');
@@ -66,21 +72,22 @@ const Dashboard: React.FC = () => {
       <Header
         title={`Welcome back, ${profile?.full_name?.split(' ')[0] || 'User'}!`}
         subtitle="Here's what's happening with your meetups"
+        onMenuClick={() => setSidebarOpen(true)}
       />
 
-      <div className="p-8 space-y-8 animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-fade-in">
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {stats.map((stat) => (
             <Card key={stat.label} className="card-elevated">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-                    <p className="text-3xl font-bold">{stat.value}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1 truncate">{stat.label}</p>
+                    <p className="text-xl sm:text-2xl lg:text-3xl font-bold">{stat.value}</p>
                   </div>
-                  <div className={`w-12 h-12 rounded-xl ${stat.bg} flex items-center justify-center`}>
-                    <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-xl ${stat.bg} flex items-center justify-center flex-shrink-0`}>
+                    <stat.icon className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${stat.color}`} />
                   </div>
                 </div>
               </CardContent>
@@ -88,7 +95,7 @@ const Dashboard: React.FC = () => {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
           {/* Active Polls */}
           <Card className="card-elevated">
             <CardHeader className="flex flex-row items-center justify-between">

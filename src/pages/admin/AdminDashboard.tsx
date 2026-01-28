@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useOutletContext } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePolls } from '@/hooks/usePolls';
@@ -35,10 +35,15 @@ import { format, formatDistanceToNow, isPast } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 
+interface OutletContext {
+  setSidebarOpen: (open: boolean) => void;
+}
+
 const AdminDashboard: React.FC = () => {
   const { isAdmin, user } = useAuth();
   const { polls, closePoll } = usePolls();
   const { activities, createActivity } = useActivities();
+  const { setSidebarOpen } = useOutletContext<OutletContext>();
 
   const [isCreateActivityOpen, setIsCreateActivityOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -125,9 +130,10 @@ const AdminDashboard: React.FC = () => {
       <Header
         title="Admin Dashboard"
         subtitle="Manage polls, activities, and users"
+        onMenuClick={() => setSidebarOpen(true)}
       />
 
-      <div className="p-8 space-y-8 animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-fade-in">
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {stats.map((stat) => (
