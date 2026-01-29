@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useOutletContext } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,9 +69,14 @@ interface ProfileWithRole extends Profile {
   role_id: string;
 }
 
+interface OutletContext {
+  setSidebarOpen: (open: boolean) => void;
+}
+
 const ManageUsers: React.FC = () => {
   const { isAdmin, user } = useAuth();
   const { toast } = useToast();
+  const { setSidebarOpen } = useOutletContext<OutletContext>();
   const [users, setUsers] = useState<ProfileWithRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -215,78 +220,163 @@ const ManageUsers: React.FC = () => {
 
   // Helper to render the users table for a provided list
   const renderUsersTable = (list: ProfileWithRole[]) => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>User</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Joined</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Actions</TableHead>
-          <TableHead>Status</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <div className="space-y-4">
+      {/* Desktop Table View */}
+      <div className="hidden lg:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Joined</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Actions</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {list.map((userProfile) => {
+              const isUserAdmin = userProfile.role_id === ROLE_IDS.ADMIN;
+              const isCurrentUser = userProfile.id === user?.id;
+
+              return (
+                <TableRow key={userProfile.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={userProfile.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {userProfile.full_name?.[0] || userProfile.email[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium">{userProfile.full_name || 'Unknown'}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{userProfile.email}</TableCell>
+                  <TableCell className="text-muted-foreground">{format(new Date(userProfile.created_at), 'MMM d, yyyy')}</TableCell>
+                  <TableCell>
+                    {isUserAdmin ? (
+                      <Badge className="bg-accent/10 text-accent border-accent/20">
+                        <Shield className="w-3 h-3 mr-1" />
+                        Admin
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">User</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openRoleChangeDialog(userProfile)}
+                      disabled={isCurrentUser}
+                      title={isCurrentUser ? "You cannot change your own role" : "Change user role"}
+                    >
+                      <UserCog className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={(userProfile.status ?? 'Active') === 'Active' ? 'active' : 'inactive'}
+                      onValueChange={(v) => handleStatusChange(userProfile, v as 'active' | 'inactive')}
+                      disabled={!isAdmin || isCurrentUser || updatingStatusId === userProfile.id}
+                    >
+                      <SelectTrigger className="w-36">
+                        <SelectValue placeholder={userProfile.status ?? 'Active'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="lg:hidden space-y-4">
         {list.map((userProfile) => {
           const isUserAdmin = userProfile.role_id === ROLE_IDS.ADMIN;
           const isCurrentUser = userProfile.id === user?.id;
 
           return (
-            <TableRow key={userProfile.id}>
-              <TableCell>
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage src={userProfile.avatar_url || undefined} />
-                    <AvatarFallback className="text-xs">
-                      {userProfile.full_name?.[0] || userProfile.email[0].toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium">{userProfile.full_name || 'Unknown'}</span>
+            <Card key={userProfile.id} className="p-4">
+              <div className="space-y-4">
+                {/* User Info */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <Avatar className="w-10 h-10 flex-shrink-0">
+                      <AvatarImage src={userProfile.avatar_url || undefined} />
+                      <AvatarFallback className="text-sm">
+                        {userProfile.full_name?.[0] || userProfile.email[0].toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">
+                        {userProfile.full_name || 'Unknown'}
+                      </p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {userProfile.email}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Joined {format(new Date(userProfile.created_at), 'MMM d, yyyy')}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Role Badge */}
+                  <div className="flex-shrink-0">
+                    {isUserAdmin ? (
+                      <Badge className="bg-accent/10 text-accent border-accent/20">
+                        <Shield className="w-3 h-3 mr-1" />
+                        Admin
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">User</Badge>
+                    )}
+                  </div>
                 </div>
-              </TableCell>
-              <TableCell className="text-muted-foreground">{userProfile.email}</TableCell>
-              <TableCell className="text-muted-foreground">{format(new Date(userProfile.created_at), 'MMM d, yyyy')}</TableCell>
-              <TableCell>
-                {isUserAdmin ? (
-                  <Badge className="bg-accent/10 text-accent border-accent/20">
-                    <Shield className="w-3 h-3 mr-1" />
-                    Admin
-                  </Badge>
-                ) : (
-                  <Badge variant="outline">User</Badge>
-                )}
-              </TableCell>
-              <TableCell>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openRoleChangeDialog(userProfile)}
-                  disabled={isCurrentUser}
-                  title={isCurrentUser ? "You cannot change your own role" : "Change user role"}
-                >
-                  <UserCog className="w-4 h-4" />
-                </Button>
-              </TableCell>
-              <TableCell>
-                <Select
-                  value={(userProfile.status ?? 'Active') === 'Active' ? 'active' : 'inactive'}
-                  onValueChange={(v) => handleStatusChange(userProfile, v as 'active' | 'inactive')}
-                  disabled={!isAdmin || isCurrentUser || updatingStatusId === userProfile.id}
-                >
-                  <SelectTrigger className="w-36">
-                    <SelectValue placeholder={userProfile.status ?? 'Active'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </TableCell>
-            </TableRow>
+
+                {/* Actions Row */}
+                <div className="flex items-center justify-between gap-3 pt-2 border-t">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Status:</span>
+                    <Select
+                      value={(userProfile.status ?? 'Active') === 'Active' ? 'active' : 'inactive'}
+                      onValueChange={(v) => handleStatusChange(userProfile, v as 'active' | 'inactive')}
+                      disabled={!isAdmin || isCurrentUser || updatingStatusId === userProfile.id}
+                    >
+                      <SelectTrigger className="w-24 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openRoleChangeDialog(userProfile)}
+                    disabled={isCurrentUser}
+                    title={isCurrentUser ? "You cannot change your own role" : "Change user role"}
+                  >
+                    <UserCog className="w-4 h-4 mr-1" />
+                    <span className="hidden sm:inline">Change Role</span>
+                  </Button>
+                </div>
+              </div>
+            </Card>
           );
         })}
-      </TableBody>
-    </Table>
+      </div>
+    </div>
   );
 
   useEffect(() => {
@@ -301,9 +391,13 @@ const ManageUsers: React.FC = () => {
 
   return (
     <div className="min-h-screen">
-      <Header title="Manage Users" subtitle="View and manage user roles" />
+      <Header 
+        title="Manage Users" 
+        subtitle="View and manage user roles" 
+        onMenuClick={() => setSidebarOpen(true)}
+      />
 
-      <div className="p-8 space-y-8 animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-fade-in">
         {/* Admin Users */}
         <Card className="card-elevated">
           <CardHeader>
@@ -328,20 +422,20 @@ const ManageUsers: React.FC = () => {
                 {adminUsers.map((userProfile) => (
                   <div
                     key={userProfile.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-border"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg border border-border"
                   >
-                    <div className="flex items-center gap-4">
-                      <Avatar className="w-10 h-10">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <Avatar className="w-10 h-10 flex-shrink-0">
                         <AvatarImage src={userProfile.avatar_url || undefined} />
                         <AvatarFallback>
                           {userProfile.email[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <p className="font-medium">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">
                           {userProfile.full_name || userProfile.email}
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground truncate">
                           {userProfile.email}
                         </p>
                       </div>
@@ -351,6 +445,7 @@ const ManageUsers: React.FC = () => {
                       size="sm"
                       onClick={() => openRoleChangeDialog(userProfile)}
                       disabled={userProfile.id === user?.id}
+                      className="w-full sm:w-auto"
                     >
                       <ShieldOff className="w-4 h-4 mr-2" />
                       Remove Admin
@@ -366,16 +461,25 @@ const ManageUsers: React.FC = () => {
         <Tabs defaultValue="all" className="w-full">
           <Card className="card-elevated">
             <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full">
-                <div className="w-full sm:w-auto">
-                  <TabsList className="mb-2 sm:mb-0">
-                    <TabsTrigger value="all" className='text-xl'>All Users ({users.length})</TabsTrigger>
-                    <TabsTrigger value="active" className='text-xl'>Active Users({activeCount})</TabsTrigger>
-                    <TabsTrigger value="inactive" className='text-xl'>Inactive Users({inactiveCount})</TabsTrigger>
+              <div className="space-y-4">
+                {/* Tabs */}
+                <div className="w-full">
+                  <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-none lg:flex">
+                    <TabsTrigger value="all" className="text-xs sm:text-sm">
+                      All ({users.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="active" className="text-xs sm:text-sm">
+                      Active ({activeCount})
+                    </TabsTrigger>
+                    <TabsTrigger value="inactive" className="text-xs sm:text-sm">
+                      Inactive ({inactiveCount})
+                    </TabsTrigger>
                   </TabsList>
                 </div>
-                <div className="flex items-center justify-between w-full sm:w-auto">
-                  <div className="relative w-64">
+                
+                {/* Search */}
+                <div className="w-full">
+                  <div className="relative max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       placeholder="Search users..."

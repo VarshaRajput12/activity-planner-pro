@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,9 +41,14 @@ const getRankBadgeClass = (rank: number | null) => {
   return '';
 };
 
+interface OutletContext {
+  setSidebarOpen: (open: boolean) => void;
+}
+
 const Leaderboard: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const { leaderboardData, isLoading, setRank } = useLeaderboard();
+  const { setSidebarOpen } = useOutletContext<OutletContext>();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterActivity, setFilterActivity] = useState<string>('all');
 
@@ -72,9 +78,10 @@ const Leaderboard: React.FC = () => {
       <Header
         title="Leaderboard"
         subtitle="Top performers across all activities"
+        onMenuClick={() => setSidebarOpen(true)}
       />
 
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
           <div className="relative flex-1">
@@ -161,7 +168,7 @@ const Leaderboard: React.FC = () => {
                       {item.participants.map((participant, index) => (
                         <div
                           key={participant.user_id}
-                          className={`flex items-center justify-between p-4 rounded-lg border ${
+                          className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between p-3 sm:p-4 rounded-lg border ${
                             participant.rank
                               ? 'bg-muted/50 border-accent/20'
                               : 'border-border'
@@ -183,22 +190,25 @@ const Leaderboard: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            <div>
-                              <p className="font-medium">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate">
                                 {participant.full_name || 'Unknown User'}
                               </p>
                               {participant.rank && (
                                 <Badge
                                   variant="outline"
-                                  className={getRankBadgeClass(participant.rank)}
+                                  className={`${getRankBadgeClass(participant.rank)} mt-1`}
                                 >
                                   {getRankIcon(participant.rank)}
-                                  <span className="ml-1">
+                                  <span className="ml-1 hidden xs:inline">
                                     {participant.rank === 1
                                       ? '1st Place'
                                       : participant.rank === 2
                                       ? '2nd Place'
                                       : '3rd Place'}
+                                  </span>
+                                  <span className="ml-1 xs:hidden">
+                                    #{participant.rank}
                                   </span>
                                 </Badge>
                               )}
@@ -206,17 +216,17 @@ const Leaderboard: React.FC = () => {
                           </div>
 
                           {isAdmin && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 justify-center sm:justify-start">
                               {[1, 2, 3].map((rank) => (
                                 <Button
                                   key={rank}
                                   variant={participant.rank === rank ? 'default' : 'outline'}
                                   size="sm"
-                                  className={
+                                  className={`min-w-[2.25rem] h-8 text-xs ${
                                     participant.rank === rank
                                       ? 'bg-accent hover:bg-accent/90'
                                       : ''
-                                  }
+                                  }`}
                                   onClick={() =>
                                     handleSetRank(
                                       item.activity.id,
