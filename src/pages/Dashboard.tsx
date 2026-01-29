@@ -224,7 +224,7 @@ const Dashboard: React.FC = () => {
                   Create Poll
                 </Button>
               </Link>
-              <Link to="/admin/activities/create">
+              <Link to="/admin">
                 <Button variant="secondary">
                   <Calendar className="w-4 h-4 mr-2" />
                   Create Activity
