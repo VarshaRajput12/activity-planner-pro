@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { useActivities } from '@/hooks/useActivities';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,9 +32,14 @@ import { format, formatDistanceToNow, isToday, isBefore, isAfter, startOfDay } f
 import { Skeleton } from '@/components/ui/skeleton';
 import { Activity } from '@/types/database';
 
+interface OutletContext {
+  setSidebarOpen: (open: boolean) => void;
+}
+
 const Activities: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const { activities, isLoading, respondToActivity, getUserResponse, updateActivity } = useActivities();
+  const { setSidebarOpen } = useOutletContext<OutletContext>();
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [respondingActivityId, setRespondingActivityId] = useState<string | null>(null);
@@ -317,9 +323,13 @@ const Activities: React.FC = () => {
 
   return (
     <div className="min-h-screen">
-      <Header title="Activities" subtitle="Manage your activity participation" />
+      <Header 
+        title="Activities" 
+        subtitle="Manage your activity participation" 
+        onMenuClick={() => setSidebarOpen(true)}
+      />
 
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <Tabs defaultValue="upcoming" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="upcoming">

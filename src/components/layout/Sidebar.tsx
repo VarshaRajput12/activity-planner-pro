@@ -11,6 +11,7 @@ import {
   LogOut,
   Bell,
   Shield,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,7 +20,13 @@ import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  isMobile?: boolean;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose, isMobile = false }) => {
   const { profile, isAdmin, signOut, refreshProfile } = useAuth();
   const { toast } = useToast();
   const location = useLocation();
@@ -92,10 +99,27 @@ const Sidebar: React.FC = () => {
     .toUpperCase() || profile?.email?.[0]?.toUpperCase() || '?';
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
+    <aside className={cn(
+      "fixed left-0 top-0 z-50 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col transition-transform duration-300",
+      isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : "lg:translate-x-0",
+      !isMobile && "lg:z-40"
+    )}>
+      {/* Mobile close button */}
+      {isMobile && (
+        <div className="flex justify-end p-4 lg:hidden">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
       {/* Logo */}
-      <div className="p-6 border-b border-sidebar-border">
-        <Link to="/dashboard" className="flex items-center gap-3">
+      <div className={cn("p-6 border-b border-sidebar-border", isMobile && "pt-2")}>
+        <Link to="/dashboard" className="flex items-center gap-3" onClick={isMobile ? onClose : undefined}>
           <div className="w-10 h-10 rounded-xl accent-gradient flex items-center justify-center">
             <Calendar className="w-5 h-5 text-accent-foreground" />
           </div>
@@ -116,6 +140,7 @@ const Sidebar: React.FC = () => {
             <Link
               key={link.href}
               to={link.href}
+              onClick={isMobile ? onClose : undefined}
               className={cn(
                 'sidebar-link',
                 isActiveLink(link.href) && 'active'
@@ -136,6 +161,7 @@ const Sidebar: React.FC = () => {
               <Link
                 key={link.href}
                 to={link.href}
+                onClick={isMobile ? onClose : undefined}
                 className={cn(
                   'sidebar-link',
                   isActiveLink(link.href) && 'active'

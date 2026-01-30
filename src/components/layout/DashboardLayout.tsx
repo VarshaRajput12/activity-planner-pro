@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
 import { Loader2 } from 'lucide-react';
+import { useMobile } from '@/hooks/use-mobile-responsive';
 
 const DashboardLayout: React.FC = () => {
   const { user, isLoading } = useAuth();
+  const isMobile = useMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -24,9 +27,20 @@ const DashboardLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar />
-      <main className="ml-64">
-        <Outlet />
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)} 
+        isMobile={isMobile}
+      />
+      {/* Overlay for mobile */}
+      {isMobile && sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      <main className={`transition-all duration-300 ${isMobile ? 'ml-0' : 'lg:ml-64'}`}>
+        <Outlet context={{ setSidebarOpen }} />
       </main>
     </div>
   );

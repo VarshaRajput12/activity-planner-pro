@@ -53,42 +53,42 @@ const Login: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen hero-gradient flex">
+    <div className="min-h-screen hero-gradient flex flex-col lg:flex-row">
       {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 text-primary-foreground">
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-8 lg:p-12 text-primary-foreground">
         <div>
-          <div className="flex items-center gap-3 mb-16">
-            <div className="w-12 h-12 rounded-xl bg-accent/20 backdrop-blur-sm flex items-center justify-center">
-              <Calendar className="w-6 h-6" />
+          <div className="flex items-center gap-3 mb-8 lg:mb-16">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-accent/20 backdrop-blur-sm flex items-center justify-center">
+              <Calendar className="w-5 h-5 lg:w-6 lg:h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Meetup</h1>
-              <p className="text-sm text-primary-foreground/70">Activity Tracker</p>
+              <h1 className="text-xl lg:text-2xl font-bold">Meetup</h1>
+              <p className="text-xs lg:text-sm text-primary-foreground/70">Activity Tracker</p>
             </div>
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-6 lg:space-y-8">
             <div>
-              <h2 className="text-4xl font-bold leading-tight mb-4">
+              <h2 className="text-2xl lg:text-4xl font-bold leading-tight mb-4">
                 Organize Activities.<br />
                 <span className="text-gradient">Track Participation.</span><br />
                 Celebrate Success.
               </h2>
-              <p className="text-lg text-primary-foreground/70 max-w-md">
+              <p className="text-base lg:text-lg text-primary-foreground/70 max-w-md">
                 The complete platform for managing team activities, from polls to
                 leaderboards—all in one place.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 mt-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mt-8 lg:mt-12">
               {features.map((feature) => (
                 <div
                   key={feature.title}
-                  className="p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10"
+                  className="p-3 lg:p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10"
                 >
-                  <feature.icon className="w-8 h-8 mb-3 text-accent" />
-                  <h3 className="font-semibold mb-1">{feature.title}</h3>
-                  <p className="text-sm text-primary-foreground/60">
+                  <feature.icon className="w-6 h-6 lg:w-8 lg:h-8 mb-2 lg:mb-3 text-accent" />
+                  <h3 className="font-semibold mb-1 text-sm lg:text-base">{feature.title}</h3>
+                  <p className="text-xs lg:text-sm text-primary-foreground/60">
                     {feature.description}
                   </p>
                 </div>
@@ -103,26 +103,26 @@ const Login: React.FC = () => {
       </div>
 
       {/* Right Panel - Login */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-background">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-background">
         <div className="w-full max-w-md">
-          <div className="lg:hidden flex items-center gap-3 mb-12 justify-center">
-            <div className="w-12 h-12 rounded-xl accent-gradient flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-accent-foreground" />
+          <div className="lg:hidden flex items-center gap-3 mb-8 lg:mb-12 justify-center">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl accent-gradient flex items-center justify-center">
+              <Calendar className="w-5 h-5 lg:w-6 lg:h-6 text-accent-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Meetup</h1>
+              <h1 className="text-xl lg:text-2xl font-bold">Meetup</h1>
               <p className="text-sm text-muted-foreground">Activity Tracker</p>
             </div>
           </div>
 
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold mb-2">Welcome back</h2>
-            <p className="text-muted-foreground">
+          <div className="text-center mb-6 lg:mb-8">
+            <h2 className="text-2xl lg:text-3xl font-bold mb-2">Welcome back</h2>
+            <p className="text-sm lg:text-base text-muted-foreground">
               Sign in to access your dashboard
             </p>
           </div>
 
-          <div className="card-elevated p-8">
+          <div className="card-elevated p-6 lg:p-8">
             <Button
               size="xl"
               variant="outline"
@@ -157,12 +157,12 @@ const Login: React.FC = () => {
               )}
             </Button>
 
-            <p className="text-center text-sm text-muted-foreground mt-6">
+            <p className="text-center text-xs lg:text-sm text-muted-foreground mt-4 lg:mt-6">
               By signing in, you agree to our Terms of Service and Privacy Policy
             </p>
           </div>
 
-          <p className="text-center text-sm text-muted-foreground mt-8">
+          <p className="text-center text-xs lg:text-sm text-muted-foreground mt-6 lg:mt-8">
             Need help?{' '}
             <a href="#" className="text-accent hover:underline">
               Contact support

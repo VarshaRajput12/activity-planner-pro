@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { usePolls } from '@/hooks/usePolls';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,9 +33,14 @@ import {
 import { format, formatDistanceToNow, isPast, addDays } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 
+interface OutletContext {
+  setSidebarOpen: (open: boolean) => void;
+}
+
 const Polls: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const { polls, isLoading, vote, getUserVote, createPoll, closePoll, deletePoll, changeVote } = usePolls();
+  const { setSidebarOpen } = useOutletContext<OutletContext>();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -377,35 +383,35 @@ const Polls: React.FC = () => {
 
   return (
     <div className="min-h-screen">
-      <Header title="Activity Polls" subtitle="Vote on upcoming activities" />
+      <Header 
+        title="Activity Polls" 
+        subtitle="Vote on upcoming activities" 
+        onMenuClick={() => setSidebarOpen(true)}
+      />
 
-      <div className="p-8">
-        <div className="flex items-center justify-between mb-8">
-          <Tabs defaultValue="active" className="w-full">
-            <div className="flex items-center justify-between mb-6">
-              <TabsList>
-                <TabsTrigger value="active">
-                  Active ({activePolls.length})
-                </TabsTrigger>
-                <TabsTrigger value="closed">
-                  Closed ({closedPolls.length})
-                </TabsTrigger>
-              </TabsList>
-
-              <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="accent">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Poll
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Create New Poll</DialogTitle>
-                    <DialogDescription>
-                      Create a poll for the community to vote on activities
-                    </DialogDescription>
-                  </DialogHeader>
+      <div className="p-4 sm:p-6 lg:p-8">
+        {/* Header with Create Poll Button */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+          <div>
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground">Polls Overview</h2>
+            <p className="text-sm text-muted-foreground">Manage and participate in activity polls</p>
+          </div>
+          
+          {isAdmin && (
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-md">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Poll
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create New Poll</DialogTitle>
+                  <DialogDescription>
+                    Create a poll for the community to vote on activities
+                  </DialogDescription>
+                </DialogHeader>
 
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
@@ -574,9 +580,23 @@ const Polls: React.FC = () => {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-            </div>
+            )}
+        </div>
 
-            <TabsContent value="active" className="space-y-6">
+        {/* Tabs Section */}
+        <Tabs defaultValue="active" className="w-full">
+          <div className="flex items-center justify-between mb-6">
+            <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-none sm:flex">
+              <TabsTrigger value="active" className="text-sm">
+                Active ({activePolls.length})
+              </TabsTrigger>
+              <TabsTrigger value="closed" className="text-sm">
+                Closed ({closedPolls.length})
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="active" className="space-y-6">
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <Skeleton key={i} className="h-64 w-full" />
@@ -600,7 +620,7 @@ const Polls: React.FC = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="closed" className="space-y-6">
+          <TabsContent value="closed" className="space-y-6">
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <Skeleton key={i} className="h-64 w-full" />
@@ -619,9 +639,8 @@ const Polls: React.FC = () => {
               ) : (
                 closedPolls.map((poll) => renderPollCard(poll, false, isAdmin))
               )}
-            </TabsContent>
-          </Tabs>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
