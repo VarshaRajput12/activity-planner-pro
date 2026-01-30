@@ -176,6 +176,33 @@ export const useActivities = () => {
     }
   };
 
+  const deleteActivity = async (activityId: string) => {
+    try {
+      const { error } = await supabase
+        .from('activities')
+        .delete()
+        .eq('id', activityId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Activity deleted',
+        description: 'The activity has been deleted successfully',
+      });
+
+      await fetchActivities();
+      return true;
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete activity',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   const getUserResponse = useCallback(
     (activityId: string): ActivityParticipation | null => {
       if (!user) return null;
@@ -214,6 +241,7 @@ export const useActivities = () => {
     createActivity,
     updateActivity,
     respondToActivity,
+    deleteActivity,
     getUserResponse,
     refetch: fetchActivities,
   };

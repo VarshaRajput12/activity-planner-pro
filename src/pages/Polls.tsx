@@ -53,7 +53,7 @@ const Polls: React.FC = () => {
     expiresInHours: 0,
     expiresInMinutes: 0,
     expiresInSeconds: 0,
-    options: [{ title: '', description: '' }, { title: '', description: '' }],
+    options: [{ title: 'Yes', description: '' }, { title: 'No', description: '' }],
   });
 
   const activePolls = polls.filter((p) => {
@@ -75,6 +75,20 @@ const Polls: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Prefill Event Date and Time with current values when opening the create dialog
+  useEffect(() => {
+    if (isCreateOpen) {
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().slice(0, 5);
+      setNewPoll((prev) => ({
+        ...prev,
+        eventDate: prev.eventDate || dateStr,
+        eventTime: prev.eventTime || timeStr,
+      }));
+    }
+  }, [isCreateOpen]);
 
   // Helper function to truncate text to 50 words
   const truncateToWords = (text: string, wordLimit: number = 10): { truncated: string; isTruncated: boolean } => {
@@ -149,7 +163,7 @@ const Polls: React.FC = () => {
         expiresInHours: 0,
         expiresInMinutes: 0,
         expiresInSeconds: 0,
-        options: [{ title: '', description: '' }, { title: '', description: '' }],
+        options: [{ title: 'Yes', description: '' }, { title: 'No', description: '' }],
       });
     }
     setIsCreating(false);
@@ -509,7 +523,7 @@ const Polls: React.FC = () => {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <Label>Options</Label>
-                        <Button
+                        {/* <Button
                           type="button"
                           variant="ghost"
                           size="sm"
@@ -518,7 +532,7 @@ const Polls: React.FC = () => {
                         >
                           <Plus className="w-4 h-4 mr-1" />
                           Add Option
-                        </Button>
+                        </Button> */}
                       </div>
 
                       {newPoll.options.map((option, index) => (
@@ -528,9 +542,11 @@ const Polls: React.FC = () => {
                               placeholder={`Option ${index + 1}`}
                               value={option.title}
                               onChange={(e) => updateOption(index, 'title', e.target.value)}
+                              readOnly={index < 2}
+                              className={index < 2 ? 'opacity-100 cursor-default' : undefined}
                             />
                           </div>
-                          {newPoll.options.length > 2 && (
+                          {newPoll.options.length > 2 && index >= 2 && (
                             <Button
                               type="button"
                               variant="ghost"

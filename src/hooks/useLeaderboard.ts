@@ -48,6 +48,7 @@ export const useLeaderboard = () => {
             rank
           )
         `)
+        .eq('status', 'completed')
         .order('scheduled_at', { ascending: false });
 
       if (activitiesError) throw activitiesError;
@@ -113,6 +114,26 @@ export const useLeaderboard = () => {
 
   const setRank = async (activityId: string, userId: string, rank: number | null, markedBy: string) => {
     try {
+      // Verify activity is completed before allowing leaderboard entry
+      const { data: activity, error: activityError } = await supabase
+        .from('activities')
+        .select('status')
+        .eq('id', activityId)
+        .single();
+
+      if (activityError || !activity) {
+        throw new Error('Activity not found');
+      }
+
+      if (activity.status !== 'completed') {
+        toast({
+          title: 'Cannot Mark Leaderboard',
+          description: 'Leaderboard can only be marked for completed activities',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // Check if entry exists
       const { data: existing } = await supabase
         .from('leaderboard_entries')
