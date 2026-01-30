@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { useActivities } from '@/hooks/useActivities';
@@ -45,8 +45,31 @@ const Activities: React.FC = () => {
   const [respondingActivityId, setRespondingActivityId] = useState<string | null>(null);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [completingActivityId, setCompletingActivityId] = useState<string | null>(null);
+  const [, setRefreshTrigger] = useState(0);
 
-  // Helper function to check if the event time has passed
+  // Auto-refresh UI when an upcoming activity's scheduled time is reached
+  useEffect(() => {
+    if (activities.length === 0) return;
+
+    // Find the next upcoming activity's scheduled time
+    const now = new Date();
+    const upcomingActivityTimes = activities
+      .filter(a => a.status !== 'completed' && a.status !== 'cancelled' && a.scheduled_at)
+      .map(a => new Date(a.scheduled_at).getTime())
+      .filter(time => time > now.getTime());
+
+    if (upcomingActivityTimes.length === 0) return;
+
+    const nextEventTime = Math.min(...upcomingActivityTimes);
+    const timeUntilNextEvent = nextEventTime - now.getTime();
+
+    // Set a timer to refresh the UI at the next event time (with a 100ms buffer)
+    const timer = setTimeout(() => {
+      setRefreshTrigger(prev => prev + 1);
+    }, timeUntilNextEvent + 100);
+
+    return () => clearTimeout(timer);
+  }, [activities]);
   const hasEventTimePassed = (activity: Activity): boolean => {
     if (!activity.scheduled_at) return false;
     const scheduledDateTime = new Date(activity.scheduled_at);
