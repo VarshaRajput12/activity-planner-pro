@@ -169,6 +169,30 @@ export const usePolls = () => {
 
       if (optionsError) throw optionsError;
 
+      // Fetch all users (including admins) to send notification to everyone
+      const { data: allUsers, error: usersError } = await supabase
+        .from('profiles')
+        .select('id');
+
+      if (!usersError && allUsers?.length) {
+        const notifications = allUsers.map((profile: { id: string }) => ({
+          user_id: profile.id,
+          title: 'New Poll Created',
+          message: `New poll created: ${title}`,
+          type: 'POLL_CREATED',
+          reference_id: poll.id,
+          is_read: false,
+        }));
+
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert(notifications);
+
+        if (notificationError) {
+          console.error('Error creating poll notifications:', notificationError);
+        }
+      }
+
       toast({
         title: 'Success',
         description: 'Poll created successfully',
