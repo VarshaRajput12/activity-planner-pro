@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate, useOutletContext } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,10 +35,66 @@ import {
 import { format, formatDistanceToNow, isPast } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface OutletContext {
   setSidebarOpen: (open: boolean) => void;
 }
+
+interface CountdownProps {
+  expiresAt: string;
+}
+
+const PollCountdown: React.FC<CountdownProps> = ({ expiresAt }) => {
+  const [countdown, setCountdown] = useState<string>('');
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = new Date();
+      const expireTime = new Date(expiresAt);
+      const diffMs = expireTime.getTime() - now.getTime();
+
+      if (diffMs <= 0) {
+        setCountdown('Expired');
+        setTimeRemaining(0);
+      } else {
+        const totalSeconds = Math.floor(diffMs / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+
+        setTimeRemaining(diffMs);
+        setCountdown(`${minutes}m ${seconds}s`);
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="flex items-center gap-1 cursor-help">
+            <Clock className="w-4 h-4" />
+            Ends in {countdown}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{format(new Date(expiresAt), 'PPp')}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
 
 const AdminDashboard: React.FC = () => {
   const { isAdmin, user } = useAuth();
@@ -268,10 +324,7 @@ const AdminDashboard: React.FC = () => {
                             <h4 className="font-semibold">{poll.title}</h4>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                               <span>{totalVotes} votes</span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-4 h-4" />
-                                Ends {formatDistanceToNow(new Date(poll.expires_at), { addSuffix: true })}
-                              </span>
+                              <PollCountdown expiresAt={poll.expires_at} />
                             </div>
                           </div>
                           {isEligible && (
