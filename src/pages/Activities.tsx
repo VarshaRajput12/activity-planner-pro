@@ -46,6 +46,31 @@ const Activities: React.FC = () => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [completingActivityId, setCompletingActivityId] = useState<string | null>(null);
   const [, setRefreshTrigger] = useState(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every second for countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Calculate detailed remaining time
+  const getDetailedRemainingTime = (scheduledAt: string): string => {
+    const scheduled = new Date(scheduledAt);
+    const diff = scheduled.getTime() - currentTime.getTime();
+    
+    if (diff <= 0) return '0 days, 0 hours, 0 minutes, 0 seconds';
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    
+    return `${days} days, ${hours} hours, ${minutes} minutes, ${seconds} seconds`;
+  };
 
   // Auto-refresh UI when an upcoming activity's scheduled time is reached
   useEffect(() => {
@@ -206,19 +231,41 @@ const Activities: React.FC = () => {
                 </Badge>
                 {getStatusBadge(activity)}
               </div>
-              <CardTitle className="text-xl">{activity.title}</CardTitle>
+              <CardTitle className="text-lg sm:text-xl break-words"><span className="font-bold">Activity Title :</span> {activity.title}</CardTitle>
               {activity.description && (
-                <p className="text-muted-foreground mt-2">{activity.description}</p>
+                <div className="text-muted-foreground mt-2 whitespace-pre-wrap break-words leading-none -space-y-1 text-sm sm:text-base">
+                  <span className="font-bold">Activity Description :</span>{' '}
+                  {activity.description.split('Winning option:').map((part, idx, arr) => (
+                    <span key={idx}>
+                      {part}
+                      {idx < arr.length - 1 && <span className="font-bold">Winning option:</span>}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mt-4">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 text-sm sm:text-base text-muted-foreground mt-4">
             {activity.scheduled_at && (
-              <span className="flex items-center gap-1">
-                <Clock className="w-4 h-4" />
-                {format(new Date(activity.scheduled_at), 'MMM d, yyyy h:mm a')}
-              </span>
+              <>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 w-full sm:w-auto">
+                  <span className="font-bold whitespace-nowrap">Activity Scheduled Date & Time :</span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    {format(new Date(activity.scheduled_at), 'MMM d, yyyy h:mm a')}
+                  </span>
+                </div>
+                {displayStatus === 'upcoming' && (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 w-full sm:w-auto">
+                    <span className="font-bold whitespace-nowrap">Activity Remaining Time :</span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      {getDetailedRemainingTime(activity.scheduled_at)}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
             {activity.location && (
               <span className="flex items-center gap-1">
@@ -273,11 +320,11 @@ const Activities: React.FC = () => {
           )}
 
           {displayStatus === 'upcoming' && response && (
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               {response.status === 'rejected' && (
                 <Button
                   variant="success"
-                  className="flex-1"
+                  className="flex-1 text-sm sm:text-base"
                   onClick={() => handleAccept(activity)}
                   disabled={respondingActivityId === activity.id}
                 >
@@ -294,7 +341,7 @@ const Activities: React.FC = () => {
               {response.status === 'accepted' && (
                 <Button
                   variant="outline"
-                  className="flex-1 border-destructive/30 text-destructive"
+                  className="flex-1 border-destructive/30 text-destructive text-sm sm:text-base"
                   onClick={() => openRejectDialog(activity)}
                   disabled={respondingActivityId === activity.id}
                 >
